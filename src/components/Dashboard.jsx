@@ -1,10 +1,13 @@
-import { Routes, Route } from "react-router-dom";
-import SidebarMenu from "@/components/SidebarMenu.jsx";
-import ReportPage from "@/pages/ReportPage.jsx";
-import ManageUserPage from "@/pages/ManageUserPage.jsx";
-import { useAuth } from "@/contexts/AuthContext.jsx";
-import LoginForm from "@/pages/LoginForm.jsx";
-import DashboardPage from "@/pages/DashboardPage.jsx";
+// Dashboard.jsx
+import { Routes, Route, Navigate } from "react-router-dom";
+import SidebarMenu from "../components/SidebarMenu";
+import { useAuth } from "../contexts/AuthContext";
+import LoginForm from "../pages/LoginForm";
+
+// Import des pages
+import DashboardPage from "../pages/DashboardPage";
+import ReportPage from "../pages/ReportPage";
+import ManageUserPage from "../pages/ManageUserPage";
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -14,15 +17,27 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="flex">
+        <div className="flex h-screen">
             <SidebarMenu />
-            <div className="flex-1 p-6">
+            <main className="flex-1 p-6 overflow-auto">
                 <Routes>
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/report" element={<ReportPage />} />
-                    {user.role === "ROLE_ADMIN" && <Route path="/admin/manage-user" element={<ManageUserPage />} />}
+                    {/* Routes explicites */}
+                    <Route index element={<DashboardPage />} />
+                    <Route path="dashboard/*" element={<DashboardPage />} />
+                    <Route path="dashboard/report" element={<ReportPage />} />
+                    <Route path="dashboard/admin/manage-user" element={
+                        user.role === "ROLE_ADMIN" ? <ManageUserPage /> : <Navigate to="/404" />
+                    } />
+
+                    {/* Route 404 */}
+                    <Route path="*" element={
+                        <div className="text-center mt-10">
+                            <h1 className="text-2xl font-bold text-gray-800">Page Not Found</h1>
+                            <p className="text-gray-600 mt-2">The page you're looking for doesn't exist.</p>
+                        </div>
+                    } />
                 </Routes>
-            </div>
+            </main>
         </div>
     );
 }
