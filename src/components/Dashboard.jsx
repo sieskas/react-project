@@ -8,6 +8,8 @@ import LoginForm from "../pages/LoginForm";
 import DashboardPage from "../pages/DashboardPage";
 import ReportPage from "../pages/ReportPage";
 import ManageUserPage from "../pages/ManageUserPage";
+import PosPage from "@/pages/PosPage.jsx";
+import CloverPage from "@/pages/CloverPage.jsx";
 
 export default function Dashboard() {
     const { user } = useAuth();
@@ -25,9 +27,11 @@ export default function Dashboard() {
                     <Route index element={<DashboardPage />} />
                     <Route path="dashboard/*" element={<DashboardPage />} />
                     <Route path="dashboard/report" element={<ReportPage />} />
+                    <Route path="/dashboard/clover" element={<CloverPage />} />
                     <Route path="dashboard/admin/manage-user" element={
                         user.role === "ROLE_ADMIN" ? <ManageUserPage /> : <Navigate to="/404" />
                     } />
+                    <Route path="dashboard/pos" element={<PosPage />} />
 
                     {/* Route 404 */}
                     <Route path="*" element={

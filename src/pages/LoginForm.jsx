@@ -7,11 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
 
 const loginSchema = z.object({
-  //email: z.string().email({ message: "Username invalide" }),
-  password: z.string().min(5, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
+  username: z.string().min(3, { message: "Le nom d'utilisateur doit contenir au moins 3 caractères" }),
+  password: z.string().min(6, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
 });
 
 export default function LoginForm() {
@@ -20,15 +19,17 @@ export default function LoginForm() {
   });
 
   const { login } = useAuth();
-  const navigate = useNavigate();
 
-  const onSubmit = (data) => {
-    login(data);
-    toast({
-      title: "Connexion réussie",
-      description: "Vous êtes maintenant connecté",
-    });
-    navigate("/dashboard");
+  const onSubmit = async (data) => {
+    try {
+      await login(data);
+    } catch (error) {
+      toast({
+        title: "Erreur de connexion",
+        description: "Identifiants invalides",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -40,9 +41,9 @@ export default function LoginForm() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
-                <Label>Text</Label>
-                <Input type="text" placeholder="usernamem" {...register("email")} />
-                {errors.email && <p className="text-red-500 text-sm">{errors.email.message}</p>}
+                <Label>Nom d'utilisateur</Label>
+                <Input type="text" placeholder="admin" {...register("username")} />
+                {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
               </div>
 
               <div>

@@ -1,5 +1,5 @@
 // menuConfig.js
-import { FaTachometerAlt, FaChartBar, FaUserCog } from "react-icons/fa";
+import {FaTachometerAlt, FaChartBar, FaUserCog, FaCashRegister} from "react-icons/fa";
 
 export const MENU_ITEMS = [
     {
@@ -21,6 +21,18 @@ export const MENU_ITEMS = [
         ],
     },
     {
+        label: "Clover",
+        icon: FaChartBar,
+        role: "ALL",
+        subMenu: [
+            {
+                label: "Report",
+                path: "/dashboard/clover",
+                role: "ALL"
+            }
+        ],
+    },
+    {
         label: "Admin",
         icon: FaUserCog,
         role: "ROLE_ADMIN",
@@ -29,7 +41,13 @@ export const MENU_ITEMS = [
                 label: "Manage User",
                 path: "/dashboard/admin/manage-user",
                 role: "ROLE_ADMIN"
-            }
+            },
         ],
+    },
+    {
+        label: "POS",
+        path: "/dashboard/pos",
+        icon: FaCashRegister,
+        role: "ALL",
     }
 ];

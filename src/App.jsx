@@ -5,14 +5,14 @@ import Dashboard from "@/components/Dashboard.jsx";
 
 function App() {
     return (
-        <AuthProvider>
-            <Router>
+        <Router>
+            <AuthProvider>
                 <Routes>
                     <Route path="/" element={<LoginForm />} />
                     <Route path="/*" element={<Dashboard />} />
                 </Routes>
-            </Router>
-        </AuthProvider>
+            </AuthProvider>
+        </Router>
     );
 }
 
