@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import {
     Popover,
     PopoverContent,
@@ -15,6 +15,7 @@ const NestedSearchDropdown = () => {
     const [searchTerm, setSearchTerm] = useState("")
     const [expandedItems, setExpandedItems] = useState(new Set())
     const [selectedId, setSelectedId] = useState(null)
+    const [exactMatches, setExactMatches] = useState(new Set())
 
     // Données d'exemple
     const sampleData = [
@@ -70,14 +71,25 @@ const NestedSearchDropdown = () => {
     // Fonction récursive pour la recherche
     const searchTree = useCallback((items, term) => {
         const results = new Set()
+        const exactMatches = new Set()
+        const parentMap = new Map()
 
         const searchRecursive = (item, parents = []) => {
             const currentPath = [...parents, item]
+            const itemNameLower = item.name.toLowerCase()
+            const searchTermLower = term.toLowerCase()
 
-            // Vérifie si l'item correspond à la recherche
-            if (item.name.toLowerCase().includes(term.toLowerCase())) {
-                // Ajoute l'item et tous ses parents aux résultats
-                currentPath.forEach(pathItem => results.add(pathItem.id))
+            // Vérifie si l'item correspond exactement à la recherche
+            if (itemNameLower.includes(searchTermLower)) {
+                currentPath.forEach(pathItem => {
+                    results.add(pathItem.id)
+                    parentMap.set(pathItem.id, currentPath)
+                })
+
+                // Si c'est une correspondance exacte
+                if (itemNameLower.includes(searchTermLower)) {
+                    exactMatches.add(item.id)
+                }
             }
 
             // Recherche récursive dans les enfants
@@ -87,35 +99,22 @@ const NestedSearchDropdown = () => {
         }
 
         items.forEach(item => searchRecursive(item))
-        return results
+        return { results, exactMatches, parentMap }
     }, [])
 
     // Recherche mémorisée
     const searchResults = useMemo(() => {
-        if (!searchTerm.trim()) return new Set()
+        if (!searchTerm.trim()) return { results: new Set(), exactMatches: new Set(), parentMap: new Map() }
         return searchTree(sampleData, searchTerm.trim())
     }, [searchTerm, searchTree])
 
-    // Ouvre automatiquement les parents des résultats de recherche
-    useCallback(() => {
+    // Met à jour les items expandés et les matches exacts quand la recherche change
+    useEffect(() => {
         if (searchTerm.trim()) {
-            setExpandedItems(prev => {
-                const newSet = new Set(prev)
-                searchResults.forEach(id => {
-                    const findParents = (items) => {
-                        for (const item of items) {
-                            if (item.children?.length > 0) {
-                                if (item.children.some(child => searchResults.has(child.id))) {
-                                    newSet.add(item.id)
-                                }
-                                findParents(item.children)
-                            }
-                        }
-                    }
-                    findParents(sampleData)
-                })
-                return newSet
-            })
+            setExpandedItems(searchResults.results)
+            setExactMatches(searchResults.exactMatches)
+        } else {
+            setExactMatches(new Set())
         }
     }, [searchTerm, searchResults])
 
@@ -155,9 +154,10 @@ const NestedSearchDropdown = () => {
         const hasChildren = item.children?.length > 0
         const isExpanded = expandedItems.has(item.id)
         const isSelected = selectedId === item.id
+        const isExactMatch = exactMatches.has(item.id)
 
         // Vérifie si l'item doit être affiché selon la recherche
-        const showInSearch = !searchTerm.trim() || searchResults.has(item.id)
+        const showInSearch = !searchTerm.trim() || searchResults.results.has(item.id)
 
         if (!showInSearch) return null
 
@@ -166,8 +166,12 @@ const NestedSearchDropdown = () => {
                 <div
                     onClick={() => handleSelect(item.id)}
                     className={cn(
-                        'flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent hover:text-accent-foreground rounded-sm',
-                        { 'bg-accent': isSelected }
+                        'flex items-center gap-2 px-2 py-1.5 cursor-pointer rounded-sm transition-colors',
+                        {
+                            'bg-accent': isSelected,
+                            'bg-blue-50 hover:bg-blue-100': isExactMatch && !isSelected,
+                            'hover:bg-accent hover:text-accent-foreground': !isExactMatch && !isSelected
+                        }
                     )}
                     style={{ paddingLeft: `${(depth * 12) + 8}px` }}
                 >
@@ -183,7 +187,12 @@ const NestedSearchDropdown = () => {
                             )}
                         </button>
                     )}
-                    <span className="flex-1 truncate">{item.name}</span>
+                    <span className={cn(
+                        "flex-1 truncate",
+                        { "font-medium": isExactMatch }
+                    )}>
+            {item.name}
+          </span>
                 </div>
 
                 {hasChildren && isExpanded && (
