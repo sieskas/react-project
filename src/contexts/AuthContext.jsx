@@ -4,6 +4,14 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { toast } from "@/hooks/use-toast";
 
+const api = axios.create({
+    baseURL: 'http://localhost:8080',
+    withCredentials: true,
+    headers: {
+        'Content-Type': 'application/json',
+    }
+});
+
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
@@ -15,11 +23,39 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) {
             setUser(JSON.parse(storedUser));
         }
-    }, []);
+
+        api.interceptors.request.use(
+            (config) => {
+                const storedUser = localStorage.getItem("user");
+                if (storedUser) {
+                    const { token } = JSON.parse(storedUser);
+                    if (token) {
+                        config.headers.Authorization = `Bearer ${token}`;
+                    }
+                }
+                return config;
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        );
+
+        api.interceptors.response.use(
+            (response) => response,
+            async (error) => {
+                if (error.response?.status === 401) {
+                    localStorage.removeItem("user");
+                    setUser(null);
+                    navigate("/login");
+                }
+                return Promise.reject(error);
+            }
+        );
+    }, [navigate]);
 
     const login = async (credentials) => {
         try {
-            const response = await axios.post("http://localhost:8080/api/v1/auth/login", credentials, { withCredentials: true });
+            const response = await api.post("/api/v1/auth/login", credentials);
             const userData = response.data;
 
             localStorage.setItem("user", JSON.stringify(userData));
@@ -30,10 +66,9 @@ export const AuthProvider = ({ children }) => {
                 description: "Vous êtes maintenant connecté",
             });
 
-            setTimeout(() => navigate("/dashboard"), 0);
+            navigate("/dashboard");
         } catch (error) {
             console.error("Erreur de connexion :", error);
-
             toast({
                 title: "Erreur de connexion",
                 description: error.response?.data?.error || "Une erreur est survenue",
@@ -44,23 +79,26 @@ export const AuthProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            await axios.post("http://localhost:8080/api/v1/auth/logout", {}, { withCredentials: true });
+            await api.post("/api/v1/auth/logout");
             localStorage.removeItem("user");
             setUser(null);
-            setTimeout(() => navigate("/login"), 0);
+            navigate("/login");
         } catch (error) {
+            // Gérer l'erreur silencieusement pour ne pas bloquer la déconnexion
             console.error("Erreur de déconnexion :", error);
+            localStorage.removeItem("user");
+            setUser(null);
+            navigate("/login");
         }
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ user, login, logout, api }}>
             {children}
         </AuthContext.Provider>
     );
 };
 
-// ✅ Validation des props
 AuthProvider.propTypes = {
     children: PropTypes.node.isRequired,
 };

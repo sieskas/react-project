@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 const loginSchema = z.object({
   username: z.string().min(3, { message: "Le nom d'utilisateur doit contenir au moins 3 caractères" }),
-  password: z.string().min(6, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
+  password: z.string().min(5, { message: "Le mot de passe doit contenir au moins 6 caractères" }),
 });
 
 export default function LoginForm() {
@@ -42,13 +42,13 @@ export default function LoginForm() {
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div>
                 <Label>Nom d'utilisateur</Label>
-                <Input type="text" placeholder="admin" {...register("username")} />
+                <Input type="text" {...register("username")} />
                 {errors.username && <p className="text-red-500 text-sm">{errors.username.message}</p>}
               </div>
 
               <div>
                 <Label>Mot de passe</Label>
-                <Input type="password" placeholder="••••••" {...register("password")} />
+                <Input type="password" {...register("password")} />
                 {errors.password && <p className="text-red-500 text-sm">{errors.password.message}</p>}
               </div>
 
