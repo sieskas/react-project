@@ -23,15 +23,11 @@ export default function Dashboard() {
             <SidebarMenu />
             <main className="flex-1 p-6 overflow-auto">
                 <Routes>
-                    {/* Routes explicites */}
                     <Route index element={<DashboardPage />} />
-                    <Route path="dashboard/*" element={<DashboardPage />} />
-                    <Route path="dashboard/report" element={<ReportPage />} />
-                    <Route path="/dashboard/clover" element={<CloverPage />} />
-                    <Route path="dashboard/admin/manage-user" element={
-                        user.role === "ROLE_ADMIN" ? <ManageUserPage /> : <Navigate to="/404" />
-                    } />
-                    <Route path="dashboard/pos" element={<PosPage />} />
+                    <Route path="report" element={<ReportPage />} />
+                    <Route path="clover" element={<CloverPage />} />
+                    <Route path="admin/manage-user" element={user.role === "ROLE_ADMIN" ? <ManageUserPage /> : <Navigate to="/404" />} />
+                    <Route path="pos" element={<PosPage />} />
 
                     {/* Route 404 */}
                     <Route path="*" element={
