@@ -1,4 +1,9 @@
-import {FaCashRegister, FaChartBar, FaTachometerAlt, FaUserCog} from "react-icons/fa";
+import { FaTachometerAlt, FaChartBar, FaUserCog, FaCashRegister } from "react-icons/fa";
+import DashboardPage from "@/pages/DashboardPage";
+import ReportPage from "@/pages/ReportPage";
+import ManageUserPage from "@/pages/ManageUserPage";
+import PosPage from "@/pages/PosPage";
+import CloverPage from "@/pages/CloverPage";
 
 export const MENU_ITEMS = [
     {
@@ -6,12 +11,14 @@ export const MENU_ITEMS = [
         path: "/",
         icon: FaTachometerAlt,
         role: "ALL",
+        component: DashboardPage,
     },
     {
         label: "TestPage",
         path: "/test",
         icon: FaTachometerAlt,
         role: "ALL",
+        component: ReportPage,
     },
     {
         label: "Analyse",
@@ -21,7 +28,8 @@ export const MENU_ITEMS = [
             {
                 label: "Report",
                 path: "/report",
-                role: "ALL"
+                role: "ALL",
+                component: ReportPage,
             }
         ],
     },
@@ -33,7 +41,8 @@ export const MENU_ITEMS = [
             {
                 label: "Report",
                 path: "/clover",
-                role: "ALL"
+                role: "ALL",
+                component: CloverPage,
             }
         ],
     },
@@ -42,6 +51,7 @@ export const MENU_ITEMS = [
         path: "/pos",
         icon: FaCashRegister,
         role: "ALL",
+        component: PosPage,
     },
     {
         label: "Admin",
@@ -51,7 +61,8 @@ export const MENU_ITEMS = [
             {
                 label: "Manage User",
                 path: "/admin/manage-user",
-                role: "ROLE_ADMIN"
+                role: "ROLE_ADMIN",
+                component: ManageUserPage,
             },
         ],
     },

@@ -2,11 +2,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-d
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginForm from "@/pages/LoginForm";
 import SidebarMenu from "@/components/SidebarMenu";
-import DashboardPage from "@/pages/DashboardPage";
-import ReportPage from "@/pages/ReportPage";
-import ManageUserPage from "@/pages/ManageUserPage";
-import PosPage from "@/pages/PosPage";
-import CloverPage from "@/pages/CloverPage";
+import { MENU_ITEMS } from "@/config/menuConfig";
 
 const PrivateRoute = ({ children }) => {
     const { user } = useAuth();
@@ -14,24 +10,47 @@ const PrivateRoute = ({ children }) => {
 };
 
 function App() {
+    // Fonction pour extraire toutes les routes depuis le menu (y compris subMenu)
+    const getRoutes = () => {
+        return MENU_ITEMS.flatMap(item => {
+            const routes = [];
+
+            // Ajouter la route principale si elle a un `component`
+            if (item.component) {
+                routes.push({ path: item.path, component: item.component, role: item.role });
+            }
+
+            // Ajouter les sous-menus s'ils ont un `component`
+            if (item.subMenu) {
+                routes.push(...item.subMenu.filter(sub => sub.component).map(sub => ({
+                    path: sub.path,
+                    component: sub.component,
+                    role: sub.role,
+                })));
+            }
+
+            return routes;
+        });
+    };
+
     return (
         <Router>
             <AuthProvider>
                 <div className="flex h-screen">
-                    {/* Sidebar toujours affiché */}
                     <SidebarMenu />
                     <main className="flex-1 p-6 overflow-auto">
                         <Routes>
-                            {/* Page de connexion */}
+                            {/* Route de connexion */}
                             <Route path="/login" element={<LoginForm />} />
 
-                            {/* Routes privées accessibles uniquement aux utilisateurs authentifiés */}
-                            <Route path="/" element={<PrivateRoute><DashboardPage /></PrivateRoute>} />
-                            <Route path="/report" element={<PrivateRoute><ReportPage /></PrivateRoute>} />
-                            <Route path="/test" element={<PrivateRoute><ReportPage /></PrivateRoute>} />
-                            <Route path="/clover" element={<PrivateRoute><CloverPage /></PrivateRoute>} />
-                            <Route path="/pos" element={<PrivateRoute><PosPage /></PrivateRoute>} />
-                            <Route path="/admin/manage-user" element={<PrivateRoute><ManageUserPage /></PrivateRoute>} />
+                            {/* Génération dynamique des routes */}
+                            {getRoutes().map(({ path, component: Component, role }) => (
+                                <Route
+                                    key={path}
+                                    path={path}
+                                    element={role === "ALL" ? <Component /> : <PrivateRoute><Component /></PrivateRoute>}
+                                />
+                            ))}
 
                             {/* Route 404 */}
                             <Route path="*" element={
