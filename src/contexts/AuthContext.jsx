@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
             const userData = response.data;
             sessionStorage.setItem('user', JSON.stringify(userData));
             setUser(userData);
-            navigate("/dashboard");
+            navigate("/");
         } catch (error) {
             toast({
                 title: "Erreur de connexion",
