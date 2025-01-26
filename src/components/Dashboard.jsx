@@ -18,8 +18,6 @@ export default function Dashboard() {
         return <LoginForm />;
     }
 
-    console.log(user.roles)
-
     return (
         <div className="flex h-screen">
             <SidebarMenu />

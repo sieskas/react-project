@@ -48,7 +48,6 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await api.post("/api/v1/auth/login", credentials);
             const userData = response.data;
-            console.log(userData)
             sessionStorage.setItem('user', JSON.stringify(userData));
             setUser(userData);
             navigate("/dashboard");
