@@ -18,7 +18,6 @@ export const MENU_ITEMS = [
         path: "/test",
         icon: FaTachometerAlt,
         role: "ALL",
-        component: ReportPage,
     },
     {
         label: "Analyse",

@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes } from "react-router-d
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import LoginForm from "@/pages/LoginForm";
 import SidebarMenu from "@/components/SidebarMenu";
+import NotFoundPage from "@/pages/NotFoundPage"; // Import de la page 404
 import { MENU_ITEMS } from "@/config/menuConfig";
 
 const PrivateRoute = ({ children }) => {
@@ -15,18 +16,24 @@ function App() {
         return MENU_ITEMS.flatMap(item => {
             const routes = [];
 
-            // Ajouter la route principale si elle a un `component`
-            if (item.component) {
-                routes.push({ path: item.path, component: item.component, role: item.role });
+            // Ajouter la route principale si elle a un `component`, sinon 404
+            if (item.path) {
+                routes.push({
+                    path: item.path,
+                    component: item.component || NotFoundPage, // Générer 404 si `component` est absent
+                    role: item.role,
+                });
             }
 
-            // Ajouter les sous-menus s'ils ont un `component`
+            // Ajouter les sous-menus s'ils ont un `component`, sinon 404
             if (item.subMenu) {
-                routes.push(...item.subMenu.filter(sub => sub.component).map(sub => ({
-                    path: sub.path,
-                    component: sub.component,
-                    role: sub.role,
-                })));
+                routes.push(
+                    ...item.subMenu.map(sub => ({
+                        path: sub.path,
+                        component: sub.component || NotFoundPage, // Générer 404 si `component` est absent
+                        role: sub.role,
+                    }))
+                );
             }
 
             return routes;
@@ -43,7 +50,7 @@ function App() {
                             {/* Route de connexion */}
                             <Route path="/login" element={<LoginForm />} />
 
-                            {/* Génération dynamique des routes */}
+                            {/* Génération dynamique des routes avec fallback 404 */}
                             {getRoutes().map(({ path, component: Component, role }) => (
                                 <Route
                                     key={path}
@@ -53,12 +60,7 @@ function App() {
                             ))}
 
                             {/* Route 404 */}
-                            <Route path="*" element={
-                                <div className="text-center mt-10">
-                                    <h1 className="text-2xl font-bold text-gray-800">Page Not Found</h1>
-                                    <p className="text-gray-600 mt-2">The page you're looking for doesn't exist.</p>
-                                </div>
-                            } />
+                            <Route path="*" element={<NotFoundPage />} />
                         </Routes>
                     </main>
                 </div>
