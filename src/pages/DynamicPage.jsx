@@ -1,161 +1,236 @@
-import { useState, useEffect } from "react";
-import { FaEdit, FaSave } from "react-icons/fa";
+import React, { useState } from 'react';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Sheet, SheetTrigger, SheetContent } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2 } from "lucide-react";
 
-export default function DynamicPage() {
-    const [fields, setFields] = useState([]);
-    const [isEditing, setIsEditing] = useState(false);
-    const [editIndex, setEditIndex] = useState(null);
-    const [isSheetOpen, setIsSheetOpen] = useState(false);
-    const [newField, setNewField] = useState({
-        id: "",
-        label: { en: "", fr: "", es: "" },
-        type: "text",
-    });
-
-    // Ouvre le panneau et prépare l'édition si nécessaire
-    const openEditPanel = (index = null) => {
-        if (index !== null) {
-            setIsEditing(true);
-            setEditIndex(index);
-            // Clone de l'objet pour éviter une mutation directe
-            setNewField({ ...fields[index], label: { ...fields[index].label } });
-        } else {
-            setIsEditing(false);
-            setNewField({ id: "", label: { en: "", fr: "", es: "" }, type: "text" });
+// Données de test
+const testData = {
+    "columns": ["ID", "Last Name", "First Name", "Age", "Email"],
+    "people": [
+        {
+            "ID": 1,
+            "Last Name": "Dupont",
+            "First Name": "Jean",
+            "Age": 30,
+            "Email": "jean.dupont@example.com"
+        },
+        {
+            "ID": 2,
+            "Last Name": "Martin",
+            "First Name": "Sophie",
+            "Age": 25,
+            "Email": "sophie.martin@example.com"
+        },
+        {
+            "ID": 3,
+            "Last Name": "Bernard",
+            "First Name": "Louis",
+            "Age": 40,
+            "Email": "louis.bernard@example.com"
+        },
+        {
+            "ID": 4,
+            "Last Name": "Lemoine",
+            "First Name": "Emma",
+            "Age": 35,
+            "Email": "emma.lemoine@example.com"
         }
-        setIsSheetOpen(true);
+    ]
+};
+
+const GenericDataTable = ({
+                              initialData = testData,
+                              title = "Données",
+                              idField = "ID"
+                          }) => {
+    const [data, setData] = useState(initialData);
+    const [editingItem, setEditingItem] = useState(null);
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+    const createEmptyItem = () => {
+        return data.columns.reduce((acc, column) => {
+            acc[column] = "";
+            return acc;
+        }, {});
     };
 
-    // Met à jour `newField` lorsqu'on édite un champ
-    useEffect(() => {
-        if (isEditing && editIndex !== null) {
-            setNewField({ ...fields[editIndex], label: { ...fields[editIndex].label } });
-        }
-    }, [editIndex]);
+    const [newItem, setNewItem] = useState(createEmptyItem());
 
-    // Mise à jour des valeurs du formulaire
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        if (name.startsWith("label")) {
-            const lang = name.split(".")[1];
-            setNewField((prev) => ({
-                ...prev,
-                label: { ...prev.label, [lang]: value },
+    const handleEdit = (item) => {
+        setEditingItem(item);
+        setIsDialogOpen(true);
+    };
+
+    const handleDelete = (id) => {
+        setData(prevData => ({
+            ...prevData,
+            people: prevData.people.filter(item => item[idField] !== id)
+        }));
+    };
+
+    const handleSave = () => {
+        if (editingItem) {
+            setData(prevData => ({
+                ...prevData,
+                people: prevData.people.map(item =>
+                    item[idField] === editingItem[idField] ? editingItem : item
+                )
             }));
         } else {
-            setNewField((prev) => ({ ...prev, [name]: value }));
+            // Generate new ID for new item
+            const newId = data.people.length > 0
+                ? Math.max(...data.people.map(item => item[idField])) + 1
+                : 1;
+
+            const itemToAdd = {
+                ...newItem,
+                [idField]: newId
+            };
+
+            setData(prevData => ({
+                ...prevData,
+                people: [...prevData.people, itemToAdd]
+            }));
+        }
+
+        setIsDialogOpen(false);
+        setEditingItem(null);
+        setNewItem(createEmptyItem());
+    };
+
+    const handleInputChange = (field, value) => {
+        if (editingItem) {
+            setEditingItem(prev => ({
+                ...prev,
+                [field]: value
+            }));
+        } else {
+            setNewItem(prev => ({
+                ...prev,
+                [field]: value
+            }));
         }
     };
 
-    // Sauvegarde ou mise à jour du champ
-    const handleSaveField = () => {
-        let updatedFields;
-        if (isEditing) {
-            updatedFields = [...fields];
-            updatedFields[editIndex] = { ...newField, label: { ...newField.label } };
-        } else {
-            updatedFields = [...fields, { ...newField, label: { ...newField.label } }];
-        }
-        setFields(updatedFields);
-        setNewField({ id: "", label: { en: "", fr: "", es: "" }, type: "text" });
-        setIsEditing(false);
-        setIsSheetOpen(false);
+    const handleAdd = () => {
+        setEditingItem(null);
+        setNewItem(createEmptyItem());
+        setIsDialogOpen(true);
     };
+
+    if (!data?.columns?.length) {
+        return (
+            <div className="p-8 text-center">
+                <p>Aucune donnée disponible</p>
+            </div>
+        );
+    }
 
     return (
-        <div className="max-w-2xl mx-auto p-6 space-y-6 relative">
-            {/* Boutons en haut à droite */}
-            <div className="absolute top-4 right-4 flex space-x-2">
-                <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                    <SheetTrigger asChild>
-                        <Button variant="outline" onClick={() => openEditPanel()}>
-                            <FaEdit className="text-gray-600 text-lg" />
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="right">
-                        <h2 className="text-lg font-bold mb-4">{isEditing ? "Modifier un champ" : "Ajouter un champ"}</h2>
-
-                        {/* Formulaire standardisé */}
-                        <div className="space-y-4">
-                            <div>
-                                <Label htmlFor="id">ID</Label>
-                                <Input id="id" name="id" value={newField.id} onChange={handleChange} />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="label-en">Label (Anglais)</Label>
-                                <Input id="label-en" name="label.en" value={newField.label.en} onChange={handleChange} />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="label-fr">Label (Français)</Label>
-                                <Input id="label-fr" name="label.fr" value={newField.label.fr} onChange={handleChange} />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="label-es">Label (Espagnol)</Label>
-                                <Input id="label-es" name="label.es" value={newField.label.es} onChange={handleChange} />
-                            </div>
-
-                            <div>
-                                <Label htmlFor="type">Type d'input</Label>
-                                <select
-                                    id="type"
-                                    name="type"
-                                    value={newField.type}
-                                    onChange={handleChange}
-                                    className="w-full p-2 border rounded"
-                                >
-                                    <option value="text">Texte</option>
-                                    <option value="number">Numérique</option>
-                                    <option value="textarea">Zone de texte</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        {/* Boutons */}
-                        <div className="flex justify-end space-x-2 mt-4">
-                            <Button variant="outline" onClick={() => setIsSheetOpen(false)}>Annuler</Button>
-                            <Button onClick={handleSaveField}>{isEditing ? "Mettre à jour" : "Sauvegarder"}</Button>
-                        </div>
-                    </SheetContent>
-                </Sheet>
-
-                {/* Bouton pour sauvegarder le formulaire (backend plus tard) */}
-                <Button variant="default">
-                    <FaSave className="mr-2" /> Sauvegarder
+        <div className="p-8">
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">{title}</h1>
+                <Button onClick={handleAdd} className="flex items-center gap-2">
+                    <Plus className="w-4 h-4" />
+                    Ajouter
                 </Button>
             </div>
 
-            {/* Titre du formulaire */}
-            <h1 className="text-2xl font-bold">Formulaire dynamique</h1>
-            <p className="text-gray-600">Ajoutez et modifiez des champs dynamiques.</p>
+            <Table className="border rounded-lg">
+                <TableHeader>
+                    <TableRow>
+                        {data.columns.map((column) => (
+                            <TableHead key={column}>{column}</TableHead>
+                        ))}
+                        <TableHead>Actions</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {data.people.map((item) => (
+                        <TableRow
+                            key={item[idField]}
+                            className="cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleEdit(item)}
+                        >
+                            {data.columns.map((column) => (
+                                <TableCell key={`${item[idField]}-${column}`}>
+                                    {item[column]}
+                                </TableCell>
+                            ))}
+                            <TableCell>
+                                <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(item[idField]);
+                                    }}
+                                    className="flex items-center gap-2"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                    Supprimer
+                                </Button>
+                            </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
 
-            {/* Formulaire principal */}
-            <div className="space-y-4">
-                {fields.map((field, index) => (
-                    <div key={index} className="flex items-center space-x-4">
-                        <div className="flex-1">
-                            <Label className="text-sm font-semibold">
-                                {field.label.fr || field.label.en || field.label.es}
-                            </Label>
-                            {field.type === "textarea" ? (
-                                <Textarea placeholder={field.label.en} className="w-full" />
-                            ) : (
-                                <Input type={field.type} placeholder={field.label.en} className="w-full" />
-                            )}
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={() => openEditPanel(index)}>
-                            <FaEdit className="text-gray-500" />
-                        </Button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {editingItem ? "Modifier l'élément" : "Ajouter un élément"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {editingItem
+                                ? "Modifiez les informations ci-dessous puis cliquez sur Enregistrer"
+                                : "Remplissez les informations ci-dessous puis cliquez sur Ajouter"}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        {data.columns
+                            .filter(field => field !== idField)
+                            .map((field) => (
+                                <div key={field} className="space-y-2">
+                                    <label className="text-sm font-medium">{field}</label>
+                                    <Input
+                                        value={editingItem ? editingItem[field] : newItem[field]}
+                                        onChange={(e) => handleInputChange(field, e.target.value)}
+                                        placeholder={`Entrez ${field.toLowerCase()}`}
+                                        className="w-full"
+                                    />
+                                </div>
+                            ))}
                     </div>
-                ))}
-            </div>
+                    <DialogFooter className="flex gap-2">
+                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                            Annuler
+                        </Button>
+                        <Button onClick={handleSave}>
+                            {editingItem ? "Enregistrer" : "Ajouter"}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
-}
+};
+
+export default GenericDataTable;
