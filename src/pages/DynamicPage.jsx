@@ -4,7 +4,7 @@ import DataTable from "@/components/DataTable";
 
 // Données de test - stockées en dehors du composant
 let allTestData = [
-    { ID: 1, Nom: "Dupont", Prénom: "Jean", Âge: 35, Email: "jean.dupont@example.com", Ville: "Paris" },
+    { ID: 1, label: "Entreprise dupont" },
     { ID: 2, Nom: "Martin", Prénom: "Sophie", Âge: 28, Email: "sophie.martin@example.com", Ville: "Marseille" },
     { ID: 3, Nom: "Lemoine", Prénom: "Paul", Âge: 42, Email: "paul.lemoine@example.com", Ville: "Lyon" },
     { ID: 4, Nom: "Bernard", Prénom: "Marie", Âge: 31, Email: "marie.bernard@example.com", Ville: "Paris" },
