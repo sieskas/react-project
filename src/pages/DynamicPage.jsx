@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
     Table,
     TableBody,
@@ -17,7 +17,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import {
+    flexRender,
+    getCoreRowModel,
+    getSortedRowModel,
+    getFilteredRowModel,
+    useReactTable,
+} from "@tanstack/react-table";
 
 // Données de test
 const testData = {
@@ -62,6 +69,54 @@ const GenericDataTable = ({
     const [data, setData] = useState(initialData);
     const [editingItem, setEditingItem] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [sorting, setSorting] = useState([]);
+    const [globalFilter, setGlobalFilter] = useState('');
+
+    const columns = useMemo(() => {
+        if (!data?.columns) return [];
+        return data.columns.map((col) => ({
+            accessorKey: col,
+            header: ({ column }) => {
+                return (
+                    <Button
+                        variant="ghost"
+                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                        className="hover:bg-transparent"
+                    >
+                        {col}
+                        {column.getIsSorted() === "asc" ? (
+                            <ArrowUp className="ml-2 h-4 w-4" />
+                        ) : column.getIsSorted() === "desc" ? (
+                            <ArrowDown className="ml-2 h-4 w-4" />
+                        ) : (
+                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                        )}
+                    </Button>
+                );
+            },
+        }));
+    }, [data?.columns]);
+
+    const table = useReactTable({
+        data: data?.people || [],
+        columns,
+        getCoreRowModel: getCoreRowModel(),
+        getSortedRowModel: getSortedRowModel(),
+        getFilteredRowModel: getFilteredRowModel(),
+        onSortingChange: setSorting,
+        onGlobalFilterChange: setGlobalFilter,
+        globalFilterFn: (row, columnId, filterValue) => {
+            const value = row.getValue(columnId);
+            if (value === null || value === undefined) return false;
+            return String(value)
+                .toLowerCase()
+                .includes(String(filterValue).toLowerCase());
+        },
+        state: {
+            sorting,
+            globalFilter,
+        },
+    });
 
     const createEmptyItem = () => {
         return data.columns.reduce((acc, column) => {
@@ -93,7 +148,6 @@ const GenericDataTable = ({
                 )
             }));
         } else {
-            // Generate new ID for new item
             const newId = data.people.length > 0
                 ? Math.max(...data.people.map(item => item[idField])) + 1
                 : 1;
@@ -144,53 +198,89 @@ const GenericDataTable = ({
 
     return (
         <div className="p-8">
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex flex-col gap-6 mb-6">
                 <h1 className="text-2xl font-bold">{title}</h1>
-                <Button onClick={handleAdd} className="flex items-center gap-2">
-                    <Plus className="w-4 h-4" />
-                    Ajouter
-                </Button>
+                <div className="flex justify-between items-center">
+                    <div className="relative">
+                        <Input
+                            placeholder="Rechercher..."
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            className="w-[300px] pl-3 pr-10"
+                        />
+                        <Search className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 transform -translate-y-1/2" />
+                    </div>
+                    <Button onClick={handleAdd} className="flex items-center gap-2">
+                        <Plus className="w-4 h-4" />
+                        Ajouter
+                    </Button>
+                </div>
             </div>
 
-            <Table className="border rounded-lg">
-                <TableHeader>
-                    <TableRow>
-                        {data.columns.map((column) => (
-                            <TableHead key={column}>{column}</TableHead>
+            <div className="rounded-md border">
+                <Table>
+                    <TableHeader>
+                        {table.getHeaderGroups().map((headerGroup) => (
+                            <TableRow key={headerGroup.id}>
+                                {headerGroup.headers.map((header) => (
+                                    <TableHead key={header.id}>
+                                        {header.isPlaceholder
+                                            ? null
+                                            : flexRender(
+                                                header.column.columnDef.header,
+                                                header.getContext()
+                                            )}
+                                    </TableHead>
+                                ))}
+                                <TableHead>Actions</TableHead>
+                            </TableRow>
                         ))}
-                        <TableHead>Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {data.people.map((item) => (
-                        <TableRow
-                            key={item[idField]}
-                            className="cursor-pointer hover:bg-gray-100"
-                            onClick={() => handleEdit(item)}
-                        >
-                            {data.columns.map((column) => (
-                                <TableCell key={`${item[idField]}-${column}`}>
-                                    {item[column]}
-                                </TableCell>
-                            ))}
-                            <TableCell>
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(item[idField]);
-                                    }}
-                                    className="flex items-center gap-2"
+                    </TableHeader>
+                    <TableBody>
+                        {table.getRowModel().rows?.length ? (
+                            table.getRowModel().rows.map((row) => (
+                                <TableRow
+                                    key={row.id}
+                                    className="cursor-pointer hover:bg-gray-100"
+                                    onClick={() => handleEdit(row.original)}
                                 >
-                                    <Trash2 className="w-4 h-4" />
-                                    Supprimer
-                                </Button>
-                            </TableCell>
-                        </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
+                                    {row.getVisibleCells().map((cell) => (
+                                        <TableCell key={cell.id}>
+                                            {flexRender(
+                                                cell.column.columnDef.cell,
+                                                cell.getContext()
+                                            )}
+                                        </TableCell>
+                                    ))}
+                                    <TableCell>
+                                        <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDelete(row.original[idField]);
+                                            }}
+                                            className="flex items-center gap-2"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                            Supprimer
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={columns.length + 1}
+                                    className="h-24 text-center"
+                                >
+                                    Aucun résultat.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-md">
