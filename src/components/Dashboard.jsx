@@ -18,6 +18,8 @@ export default function Dashboard() {
         return <LoginForm />;
     }
 
+    console.log(user.roles)
+
     return (
         <div className="flex h-screen">
             <SidebarMenu />
@@ -26,7 +28,8 @@ export default function Dashboard() {
                     <Route index element={<DashboardPage />} />
                     <Route path="report" element={<ReportPage />} />
                     <Route path="clover" element={<CloverPage />} />
-                    <Route path="admin/manage-user" element={user.role === "ROLE_ADMIN" ? <ManageUserPage /> : <Navigate to="/404" />} />
+                    <Route path="admin/manage-user" element={user.roles.includes("ROLE_ADMIN") ? <ManageUserPage /> : <Navigate to="/404" />} />
+                    <Route path="pos" element={<PosPage />} />
                     <Route path="pos" element={<PosPage />} />
 
                     {/* Route 404 */}

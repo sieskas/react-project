@@ -56,7 +56,7 @@ export default function SidebarMenu() {
 
                 <Menu className="p-2">
                     {MENU_ITEMS.map((item, index) => {
-                        if (item.role !== "ALL" && user.role !== item.role) return null;
+                        if (item.role !== "ALL" && !user.roles.includes(item.role)) return null; // ✅ Vérification correcte
 
                         const Icon = item.icon;
 

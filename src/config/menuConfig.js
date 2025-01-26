@@ -33,6 +33,12 @@ export const MENU_ITEMS = [
         ],
     },
     {
+        label: "POS",
+        path: "/dashboard/pos",
+        icon: FaCashRegister,
+        role: "ALL",
+    },
+    {
         label: "Admin",
         icon: FaUserCog,
         role: "ROLE_ADMIN",
@@ -42,12 +48,11 @@ export const MENU_ITEMS = [
                 path: "/dashboard/admin/manage-user",
                 role: "ROLE_ADMIN"
             },
+            {
+                label: "Manage Location",
+                path: "/dashboard/admin/manage-location",
+                role: "ROLE_ADMIN"
+            },
         ],
     },
-    {
-        label: "POS",
-        path: "/dashboard/pos",
-        icon: FaCashRegister,
-        role: "ALL",
-    }
 ];
