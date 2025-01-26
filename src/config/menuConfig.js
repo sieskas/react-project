@@ -4,6 +4,7 @@ import ReportPage from "@/pages/ReportPage";
 import ManageUserPage from "@/pages/ManageUserPage";
 import PosPage from "@/pages/PosPage";
 import CloverPage from "@/pages/CloverPage";
+import DynamicPage from "@/pages/DynamicPage";
 
 export const MENU_ITEMS = [
     {
@@ -18,6 +19,7 @@ export const MENU_ITEMS = [
         path: "/test",
         icon: FaTachometerAlt,
         role: "ALL",
+        component: DynamicPage,
     },
     {
         label: "Analyse",
