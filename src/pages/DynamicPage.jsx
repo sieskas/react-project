@@ -1,144 +1,204 @@
-// GenericDataTable.jsx
 import React, { useState, useEffect } from "react";
-import DataTable from "@/components/DataTable";
+import { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView";
+import { TreeItem } from "@mui/x-tree-view/TreeItem";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import Spinner from "@/components/Spinner.jsx";
 
-// Données de test - stockées en dehors du composant
-let allTestData = [
-    { ID: 1, label: "Entreprise dupont" },
-    { ID: 2, Nom: "Martin", Prénom: "Sophie", Âge: 28, Email: "sophie.martin@example.com", Ville: "Marseille" },
-    { ID: 3, Nom: "Lemoine", Prénom: "Paul", Âge: 42, Email: "paul.lemoine@example.com", Ville: "Lyon" },
-    { ID: 4, Nom: "Bernard", Prénom: "Marie", Âge: 31, Email: "marie.bernard@example.com", Ville: "Paris" },
-    { ID: 5, Nom: "Thomas", Prénom: "Lucas", Âge: 45, Email: "lucas.thomas@example.com", Ville: "Lyon" },
-    { ID: 6, Nom: "Robert", Prénom: "Emma", Âge: 29, Email: "emma.robert@example.com", Ville: "Marseille" },
-    { ID: 7, Nom: "Dubois", Prénom: "Louis", Âge: 38, Email: "louis.dubois@example.com", Ville: "Paris" },
-    { ID: 8, Nom: "Petit", Prénom: "Alice", Âge: 33, Email: "alice.petit@example.com", Ville: "Marseille" },
-    { ID: 9, Nom: "Richard", Prénom: "Hugo", Âge: 27, Email: "hugo.richard@example.com", Ville: "Lyon" },
-    { ID: 10, Nom: "Moreau", Prénom: "Léa", Âge: 36, Email: "lea.moreau@example.com", Ville: "Paris" }
-];
-
-const columnsSchema = [
-    { name: "ID", type: "Number", maxLength: 10, required: true },
-    { name: "Nom", type: "String", maxLength: 50, required: true },
-    { name: "Prénom", type: "String", maxLength: 50, required: false },
-    { name: "Âge", type: "Number", maxLength: 3, required: true },
-    { name: "Email", type: "String", maxLength: 100, required: true },
-    {
-        name: "Ville",
-        type: "Dropdown",
-        required: false,
-        // Clé contenant les valeurs de la dropdown
-        dropdownOptions: ["Paris", "Marseille", "Lyon"]
-    }
-];
-
-const generateData = (pageIndex = 0, pageSize = 3) => {
-    const start = pageIndex * pageSize;
-    const end = start + pageSize;
-    const paginatedData = allTestData.slice(start, end);
-
-    return {
-        columns: columnsSchema,
-        content: paginatedData,
-        pageable: {
-            pageNumber: pageIndex,
-            pageSize: pageSize
-        },
-        totalElements: allTestData.length,
-        totalPages: Math.ceil(allTestData.length / pageSize),
-        last: end >= allTestData.length,
-        size: pageSize,
-        number: pageIndex,
-        numberOfElements: paginatedData.length,
-        first: pageIndex === 0,
-        empty: paginatedData.length === 0
-    };
+// Garder les fonctions de fetch existantes...
+const fetchLocationsHierarchy = () => {
+    const storedData = localStorage.getItem("locationsHierarchy");
+    return storedData ? JSON.parse(storedData) : null;
 };
 
-const GenericDataTable = () => {
-    const [tableData, setTableData] = useState(null);
-    const [currentPage, setCurrentPage] = useState(0);
-    const [pageSize, setPageSize] = useState(3);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState(null);
+const fetchLocationDataFromServer = (id) => {
+    return new Promise((resolve) => {
+        setTimeout(() => {
+            const mockLocationData = {
+                locationInfo: {
+                    label: "Informations générales",
+                    data: { ID: id, Nom: `Location ${id}`, Type: "Store" },
+                    columnsSchema: [
+                        { name: "ID", type: "Number", maxLength: 10, required: true },
+                        { name: "Nom", type: "String", maxLength: 50, required: true },
+                        { name: "Type", type: "Dropdown", required: true, dropdownOptions: ["Chain", "Store", "Region", "District"] }
+                    ]
+                },
+                address: {
+                    label: "Adresse",
+                    data: { Adresse: `Adresse ${id}`, Ville: "Paris" },
+                    columnsSchema: [
+                        { name: "Adresse", type: "String", maxLength: 100, required: false },
+                        { name: "Ville", type: "Dropdown", required: false, dropdownOptions: ["Paris", "Marseille", "Lyon"] }
+                    ]
+                }
+            };
+            resolve(mockLocationData);
+        }, 1500);
+    });
+};
 
-    const fetchData = async (page = 0, size = 3) => {
-        try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            const response = generateData(page, size);
-            setTableData(response);
-        } catch (error) {
-            console.error("Erreur lors du chargement des données:", error);
+// Structure pour un nouveau formulaire vide
+const emptyFormData = {
+    locationInfo: {
+        label: "Informations générales",
+        data: { ID: "", Nom: "", Type: "" },
+        columnsSchema: [
+            { name: "ID", type: "Number", maxLength: 10, required: true },
+            { name: "Nom", type: "String", maxLength: 50, required: true },
+            { name: "Type", type: "Dropdown", required: true, dropdownOptions: ["Chain", "Store", "Region", "District"] }
+        ]
+    },
+    address: {
+        label: "Adresse",
+        data: { Adresse: "", Ville: "" },
+        columnsSchema: [
+            { name: "Adresse", type: "String", maxLength: 100, required: false },
+            { name: "Ville", type: "Dropdown", required: false, dropdownOptions: ["Paris", "Marseille", "Lyon"] }
+        ]
+    }
+};
+
+const DynamicPage = () => {
+    const [locationsHierarchy, setLocationsHierarchy] = useState(fetchLocationsHierarchy());
+    const [selected, setSelected] = useState(null);
+    const [locationData, setLocationData] = useState({});
+    const [isLoading, setIsLoading] = useState(false);
+    const [tab, setTab] = useState("locationInfo");
+
+    const getAllNodeIds = (node) => {
+        let ids = [node.id];
+        if (node.children?.length > 0) {
+            node.children.forEach((child) => {
+                ids = ids.concat(getAllNodeIds(child));
+            });
+        }
+        return ids;
+    };
+    const allNodeIds = getAllNodeIds(locationsHierarchy);
+
+    const renderTree = (node) => (
+        <TreeItem key={node.id} itemId={node.id} label={node.label}>
+            {node.children?.map((child) => renderTree(child))}
+        </TreeItem>
+    );
+
+    const handleNodeSelect = async (event, itemIds) => {
+        const selectedId = itemIds.length > 0 ? itemIds[0] : null;
+        setSelected(selectedId);
+
+        if (selectedId) {
+            setIsLoading(true);
+            const data = await fetchLocationDataFromServer(selectedId);
+            setLocationData(data);
+            setIsLoading(false);
+        } else {
+            setLocationData({});
         }
     };
 
-    useEffect(() => {
-        fetchData(currentPage, pageSize);
-    }, [currentPage, pageSize]);
-
-    const handlePageChange = (pageIndex, newPageSize) => {
-        setCurrentPage(pageIndex);
-        setPageSize(newPageSize);
-        fetchData(pageIndex, newPageSize);
+    const handleAdd = () => {
+        setSelected("new");
+        setLocationData(emptyFormData);
+        setTab("locationInfo"); // Réinitialiser l'onglet actif
     };
 
-    const handleDelete = async (id) => {
-        try {
-            console.log("delete")
-            await new Promise(resolve => setTimeout(resolve, 500));
-            // Mettre à jour les données de test
-            allTestData = allTestData.filter(item => item.ID !== id);
-            // Recharger les données
-            fetchData(currentPage, pageSize);
-        } catch (error) {
-            console.error("Erreur lors de la suppression:", error);
-        }
-    };
-
-    const handleSave = async (formData, isEditing) => {
-        try {
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            if (isEditing) {
-                console.log("edit")
-                // Mise à jour
-                allTestData = allTestData.map(item =>
-                    item.ID === formData.ID ? formData : item
-                );
-            } else {
-                console.log("add")
-                // Ajout
-                const newId = Math.max(...allTestData.map(item => item.ID)) + 1;
-                allTestData = [...allTestData, { ...formData, ID: newId }];
+    const handleInputChange = (section, field, value) => {
+        setLocationData((prev) => ({
+            ...prev,
+            [section]: {
+                ...prev[section],
+                data: { ...prev[section].data, [field]: value }
             }
-
-            // Recharger les données
-            fetchData(currentPage, pageSize);
-            setIsDialogOpen(false);
-            setEditingItem(null);
-        } catch (error) {
-            console.error("Erreur lors de la sauvegarde:", error);
-        }
+        }));
     };
 
-    if (!tableData) return <div>Chargement...</div>;
+    const handleSave = () => {
+        console.log("Données enregistrées :", locationData);
+    };
 
     return (
-        <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4">Tableau des Utilisateurs</h1>
-            <DataTable
-                initialData={tableData}
-                title="Utilisateurs"
-                idField="ID"
-                onPageChange={handlePageChange}
-                onDelete={handleDelete}
-                onSave={handleSave}
-                isDialogOpen={isDialogOpen}
-                setIsDialogOpen={setIsDialogOpen}
-                editingItem={editingItem}
-                setEditingItem={setEditingItem}
-            />
+        <div className="flex flex-col items-center space-y-6 mt-6">
+            <Card className="w-[500px] p-4">
+                <h2 className="text-lg font-semibold">Sélectionner une location</h2>
+
+                <SimpleTreeView defaultExpandedItems={allNodeIds} onItemClick={handleNodeSelect}>
+                    {renderTree(locationsHierarchy)}
+                </SimpleTreeView>
+
+                <div className="mt-4 flex justify-center gap-4">
+                    <Button onClick={handleAdd} disabled={!selected && locationsHierarchy && Object.keys(locationsHierarchy).length > 0}>
+                        Ajouter
+                    </Button>
+                    <Button variant="destructive" disabled={!selected || selected === "new"}>
+                        Supprimer
+                    </Button>
+                </div>
+
+            </Card>
+
+            {isLoading && (
+                <div className="flex justify-center items-center h-32">
+                    <Spinner size={48} className="text-black dark:text-white" />
+                </div>
+            )}
+
+            {!isLoading && selected && (
+                <Card className="w-[800px] p-6">
+                    <Tabs value={tab} onValueChange={setTab} className="w-full">
+                        <TabsList className="flex justify-start mb-4 border-b">
+                            {Object.keys(locationData).map((key) => (
+                                <TabsTrigger key={key} value={key}>
+                                    {locationData[key].label}
+                                </TabsTrigger>
+                            ))}
+                        </TabsList>
+
+                        {Object.keys(locationData).map((key) => (
+                            <TabsContent key={key} value={key}>
+                                <h3 className="text-lg font-medium mb-4">{locationData[key].label}</h3>
+                                <div className="space-y-4">
+                                    {locationData[key].columnsSchema.map(({ name, type, dropdownOptions }) =>
+                                        type === "Dropdown" ? (
+                                            <div key={name}>
+                                                <Label>{name}</Label>
+                                                <Select onValueChange={(value) => handleInputChange(key, name, value)} value={locationData[key].data[name] || ""}>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder={`Sélectionnez ${name.toLowerCase()}`} />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {dropdownOptions.map((option) => (
+                                                            <SelectItem key={option} value={option}>
+                                                                {option}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </div>
+                                        ) : (
+                                            <div key={name}>
+                                                <Label>{name}</Label>
+                                                <Input value={locationData[key].data[name] || ""} onChange={(e) => handleInputChange(key, name, e.target.value)} />
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </TabsContent>
+                        ))}
+                    </Tabs>
+
+                    <Button className="mt-6 w-full" onClick={handleSave} disabled={!locationData.locationInfo.data.ID || !locationData.locationInfo.data.Nom || !locationData.locationInfo.data.Type}>
+                        Enregistrer
+                    </Button>
+
+                </Card>
+            )}
         </div>
     );
 };
 
-export default GenericDataTable;
+export default DynamicPage;

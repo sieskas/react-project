@@ -9,7 +9,7 @@ import DynamicPage from "@/pages/DynamicPage";
 export const MENU_ITEMS = [
     {
         label: "Dashboard",
-        path: "/",
+        path: "/dashboard",
         icon: FaTachometerAlt,
         role: "ALL",
         component: DashboardPage,
