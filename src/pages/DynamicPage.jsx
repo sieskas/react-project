@@ -1,402 +1,135 @@
-import React, {useState, useMemo} from 'react';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogDescription,
-    DialogFooter,
-} from "@/components/ui/dialog";
-import {
-    Pagination,
-    PaginationContent,
-    PaginationItem,
-    PaginationLink,
-    PaginationNext,
-    PaginationPrevious,
-    PaginationEllipsis,
-} from "@/components/ui/pagination";
-import {Button} from "@/components/ui/button";
-import {Input} from "@/components/ui/input";
-import {Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Search} from "lucide-react";
-import {
-    flexRender,
-    getCoreRowModel,
-    getSortedRowModel,
-    getFilteredRowModel,
-    getPaginationRowModel,
-    useReactTable,
-} from "@tanstack/react-table";
+// GenericDataTable.jsx
+import React, { useState, useEffect } from "react";
+import DataTable from "@/components/DataTable";
 
-// Fonction de génération des données de test
-const generateTestData = (count = 35) => {
-    const firstNames = ["Jean", "Sophie", "Louis", "Emma", "Thomas", "Marie", "Paul", "Julie", "Pierre", "Clara"];
-    const lastNames = ["Dupont", "Martin", "Bernard", "Lemoine", "Dubois", "Moreau", "Laurent", "Simon", "Michel", "Robert"];
+// Données de test - stockées en dehors du composant
+let allTestData = [
+    { ID: 1, Nom: "Dupont", Prénom: "Jean", Âge: 35, Email: "jean.dupont@example.com" },
+    { ID: 2, Nom: "Martin", Prénom: "Sophie", Âge: 28, Email: "sophie.martin@example.com" },
+    { ID: 3, Nom: "Lemoine", Prénom: "Paul", Âge: 42, Email: "paul.lemoine@example.com" },
+    { ID: 4, Nom: "Bernard", Prénom: "Marie", Âge: 31, Email: "marie.bernard@example.com" },
+    { ID: 5, Nom: "Thomas", Prénom: "Lucas", Âge: 45, Email: "lucas.thomas@example.com" },
+    { ID: 6, Nom: "Robert", Prénom: "Emma", Âge: 29, Email: "emma.robert@example.com" },
+    { ID: 7, Nom: "Dubois", Prénom: "Louis", Âge: 38, Email: "louis.dubois@example.com" },
+    { ID: 8, Nom: "Petit", Prénom: "Alice", Âge: 33, Email: "alice.petit@example.com" },
+    { ID: 9, Nom: "Richard", Prénom: "Hugo", Âge: 27, Email: "hugo.richard@example.com" },
+    { ID: 10, Nom: "Moreau", Prénom: "Léa", Âge: 36, Email: "lea.moreau@example.com" }
+];
 
-    const content = Array.from({length: count}, (_, i) => ({
-        "ID": i + 1,
-        "Last Name": lastNames[Math.floor(Math.random() * lastNames.length)],
-        "First Name": firstNames[Math.floor(Math.random() * firstNames.length)],
-        "Age": Math.floor(Math.random() * (60 - 20) + 20),
-        "Email": `user${i + 1}@example.com`
-    }));
+const columnsSchema = [
+    { name: "ID", type: "Number", maxLength: 10, required: true },
+    { name: "Nom", type: "String", maxLength: 50, required: true },
+    { name: "Prénom", type: "String", maxLength: 50, required: false },
+    { name: "Âge", type: "Number", maxLength: 3, required: true },
+    { name: "Email", type: "String", maxLength: 100, required: true }
+];
 
-    const pageSize = 10;
-    const totalPages = Math.ceil(count / pageSize);
+const generateData = (pageIndex = 0, pageSize = 3) => {
+    const start = pageIndex * pageSize;
+    const end = start + pageSize;
+    const paginatedData = allTestData.slice(start, end);
 
     return {
-        "columns": ["ID", "Last Name", "First Name", "Age", "Email"],
-        "content": content,
-        "pageable": {
-            "pageNumber": 0,
-            "pageSize": pageSize,
-            "sort": {
-                "empty": true,
-                "sorted": false,
-                "unsorted": true
-            },
+        columns: columnsSchema,
+        content: paginatedData,
+        pageable: {
+            pageNumber: pageIndex,
+            pageSize: pageSize
         },
-        "totalElements": count,
-        "totalPages": totalPages,
-        "last": true,
-        "size": pageSize,
-        "number": 0,
-        "numberOfElements": count,
-        "first": true,
-        "empty": false
+        totalElements: allTestData.length,
+        totalPages: Math.ceil(allTestData.length / pageSize),
+        last: end >= allTestData.length,
+        size: pageSize,
+        number: pageIndex,
+        numberOfElements: paginatedData.length,
+        first: pageIndex === 0,
+        empty: paginatedData.length === 0
     };
 };
 
-// Données de test initiales
-const testData = generateTestData();
-
-const GenericDataTable = ({
-                              initialData = testData,
-                              title = "Données",
-                              idField = "ID",
-                              onPageChange = (pageIndex, pageSize) => console.log("Page changed:", pageIndex, pageSize),
-                              onSortChange = (sort) => console.log("Sort changed:", sort)
-                          }) => {
-    const [data, setData] = useState(initialData);
-    const [editingItem, setEditingItem] = useState(null);
+const GenericDataTable = () => {
+    const [tableData, setTableData] = useState(null);
+    const [currentPage, setCurrentPage] = useState(0);
+    const [pageSize, setPageSize] = useState(3);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [sorting, setSorting] = useState([]);
-    const [globalFilter, setGlobalFilter] = useState('');
-    const [{pageIndex, pageSize}, setPagination] = useState({
-        pageIndex: initialData.pageable.pageNumber,
-        pageSize: initialData.pageable.pageSize,
-    });
+    const [editingItem, setEditingItem] = useState(null);
 
-    const columns = useMemo(() => {
-        if (!data?.columns) return [];
-        return data.columns.map((col) => ({
-            accessorKey: col,
-            header: ({column}) => {
-                return (
-                    <Button
-                        variant="ghost"
-                        onClick={() => {
-                            column.toggleSorting(column.getIsSorted() === "asc");
-                            const newSort = column.getIsSorted() === "asc" ? "desc" : "asc";
-                            onSortChange({field: col, direction: newSort});
-                        }}
-                        className="hover:bg-transparent"
-                    >
-                        {col}
-                        {column.getIsSorted() === "asc" ? (
-                            <ArrowUp className="ml-2 h-4 w-4"/>
-                        ) : column.getIsSorted() === "desc" ? (
-                            <ArrowDown className="ml-2 h-4 w-4"/>
-                        ) : (
-                            <ArrowUpDown className="ml-2 h-4 w-4"/>
-                        )}
-                    </Button>
+    const fetchData = async (page = 0, size = 3) => {
+        try {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const response = generateData(page, size);
+            setTableData(response);
+        } catch (error) {
+            console.error("Erreur lors du chargement des données:", error);
+        }
+    };
+
+    useEffect(() => {
+        fetchData(currentPage, pageSize);
+    }, [currentPage, pageSize]);
+
+    const handlePageChange = (pageIndex, newPageSize) => {
+        setCurrentPage(pageIndex);
+        setPageSize(newPageSize);
+        fetchData(pageIndex, newPageSize);
+    };
+
+    const handleDelete = async (id) => {
+        try {
+            console.log("delete")
+            await new Promise(resolve => setTimeout(resolve, 500));
+            // Mettre à jour les données de test
+            allTestData = allTestData.filter(item => item.ID !== id);
+            // Recharger les données
+            fetchData(currentPage, pageSize);
+        } catch (error) {
+            console.error("Erreur lors de la suppression:", error);
+        }
+    };
+
+    const handleSave = async (formData, isEditing) => {
+        try {
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            if (isEditing) {
+                console.log("edit")
+                // Mise à jour
+                allTestData = allTestData.map(item =>
+                    item.ID === formData.ID ? formData : item
                 );
-            },
-        }));
-    }, [data?.columns, onSortChange]);
+            } else {
+                console.log("add")
+                // Ajout
+                const newId = Math.max(...allTestData.map(item => item.ID)) + 1;
+                allTestData = [...allTestData, { ...formData, ID: newId }];
+            }
 
-    const table = useReactTable({
-        data: data?.content || [],
-        columns,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        onSortingChange: setSorting,
-        onPaginationChange: setPagination,
-        onGlobalFilterChange: setGlobalFilter,
-        state: {
-            sorting,
-            globalFilter,
-            pagination: {
-                pageIndex,
-                pageSize,
-            },
-        },
-        pageCount: Math.ceil(data?.totalElements / pageSize),
-        manualPagination: false,
-    });
-
-    const createEmptyItem = () => {
-        return data.columns.reduce((acc, column) => {
-            acc[column] = "";
-            return acc;
-        }, {});
-    };
-
-    const [newItem, setNewItem] = useState(createEmptyItem());
-
-    const handleEdit = (item) => {
-        setEditingItem(item);
-        setIsDialogOpen(true);
-    };
-
-    const handleDelete = (id) => {
-        setData(prevData => {
-            const newContent = prevData.content.filter(item => item[idField] !== id);
-            const newTotalElements = newContent.length;
-            const newTotalPages = Math.ceil(newTotalElements / pageSize);
-
-            return {
-                ...prevData,
-                content: newContent,
-                totalElements: newTotalElements,
-                totalPages: newTotalPages
-            };
-        });
-    };
-
-    const handleSave = () => {
-        if (editingItem) {
-            setData(prevData => ({
-                ...prevData,
-                content: prevData.content.map(item =>
-                    item[idField] === editingItem[idField] ? editingItem : item
-                )
-            }));
-        } else {
-            const newId = data.content.length > 0
-                ? Math.max(...data.content.map(item => item[idField])) + 1
-                : 1;
-
-            const itemToAdd = {
-                ...newItem,
-                [idField]: newId
-            };
-
-            setData(prevData => {
-                const newContent = [...prevData.content, itemToAdd];
-                const newTotalElements = newContent.length;
-                const newTotalPages = Math.ceil(newTotalElements / pageSize);
-
-                return {
-                    ...prevData,
-                    content: newContent,
-                    totalElements: newTotalElements,
-                    totalPages: newTotalPages
-                };
-            });
-        }
-
-        setIsDialogOpen(false);
-        setEditingItem(null);
-        setNewItem(createEmptyItem());
-    };
-
-    const handleInputChange = (field, value) => {
-        if (editingItem) {
-            setEditingItem(prev => ({
-                ...prev,
-                [field]: value
-            }));
-        } else {
-            setNewItem(prev => ({
-                ...prev,
-                [field]: value
-            }));
+            // Recharger les données
+            fetchData(currentPage, pageSize);
+            setIsDialogOpen(false);
+            setEditingItem(null);
+        } catch (error) {
+            console.error("Erreur lors de la sauvegarde:", error);
         }
     };
 
-    const handleAdd = () => {
-        setEditingItem(null);
-        setNewItem(createEmptyItem());
-        setIsDialogOpen(true);
-    };
-
-    if (!data?.columns?.length) {
-        return (
-            <div className="p-8 text-center">
-                <p>Aucune donnée disponible</p>
-            </div>
-        );
-    }
+    if (!tableData) return <div>Chargement...</div>;
 
     return (
-        <div className="p-8">
-            <div className="flex flex-col gap-6 mb-6">
-                <h1 className="text-2xl font-bold">{title}</h1>
-                <div className="flex justify-between items-center">
-                    <div className="relative">
-                        <Input
-                            placeholder="Rechercher..."
-                            value={globalFilter}
-                            onChange={(e) => setGlobalFilter(e.target.value)}
-                            className="w-[300px] pl-3 pr-10"
-                        />
-                        <Search className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 transform -translate-y-1/2"/>
-                    </div>
-                    <Button onClick={handleAdd} className="flex items-center gap-2">
-                        <Plus className="w-4 h-4"/>
-                        Ajouter
-                    </Button>
-                </div>
-            </div>
-
-            <div className="rounded-md border">
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            {table.getHeaderGroups()[0].headers.map((header) => (
-                                <TableHead key={header.id}>
-                                    {header.isPlaceholder
-                                        ? null
-                                        : flexRender(
-                                            header.column.columnDef.header,
-                                            header.getContext()
-                                        )}
-                                </TableHead>
-                            ))}
-                            <TableHead>Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {table.getRowModel().rows?.length ? (
-                            table.getRowModel().rows.map((row) => (
-                                <TableRow
-                                    key={row.id}
-                                    className="cursor-pointer hover:bg-gray-100"
-                                    onClick={() => handleEdit(row.original)}
-                                >
-                                    {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                            {flexRender(
-                                                cell.column.columnDef.cell,
-                                                cell.getContext()
-                                            )}
-                                        </TableCell>
-                                    ))}
-                                    <TableCell>
-                                        <Button
-                                            variant="destructive"
-                                            size="sm"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleDelete(row.original[idField]);
-                                            }}
-                                            className="flex items-center gap-2"
-                                        >
-                                            <Trash2 className="w-4 h-4"/>
-                                            Supprimer
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell
-                                    colSpan={columns.length + 1}
-                                    className="h-24 text-center"
-                                >
-                                    Aucun résultat.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </div>
-
-            <div className="flex items-center justify-between py-4">
-                <div className="text-sm text-gray-500">
-                    {pageSize * pageIndex + 1}-{Math.min(pageSize * (pageIndex + 1), data.totalElements)} sur {data.totalElements} éléments
-                </div>
-                <div className="flex items-center gap-4 ml-auto">
-                    <Pagination>
-                        <PaginationContent className="flex gap-2">
-                            <PaginationItem>
-                                <PaginationPrevious
-                                    onClick={() => table.previousPage()}
-                                    disabled={!table.getCanPreviousPage()}
-                                />
-                            </PaginationItem>
-
-                            {Array.from({ length: data.totalPages }, (_, i) => (
-                                <PaginationItem key={i}>
-                                    <PaginationLink
-                                        onClick={() => table.setPageIndex(i)}
-                                        isActive={pageIndex === i}
-                                    >
-                                        {i + 1}
-                                    </PaginationLink>
-                                </PaginationItem>
-                            ))}
-
-                            <PaginationItem>
-                                <PaginationNext
-                                    onClick={() => table.nextPage()}
-                                    disabled={!table.getCanNextPage()}
-                                />
-                            </PaginationItem>
-                        </PaginationContent>
-                    </Pagination>
-                </div>
-            </div>
-
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {editingItem ? "Modifier l'élément" : "Ajouter un élément"}
-                        </DialogTitle>
-                        <DialogDescription>
-                            {editingItem
-                                ? "Modifiez les informations ci-dessous puis cliquez sur Enregistrer"
-                                : "Remplissez les informations ci-dessous puis cliquez sur Ajouter"}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                        {data.columns
-                            .filter(field => field !== idField)
-                            .map((field) => (
-                                <div key={field} className="space-y-2">
-                                    <label className="text-sm font-medium">{field}</label>
-                                    <Input
-                                        value={editingItem ? editingItem[field] : newItem[field]}
-                                        onChange={(e) => handleInputChange(field, e.target.value)}
-                                        placeholder={`Entrez ${field.toLowerCase()}`}
-                                        className="w-full"
-                                    />
-                                </div>
-                            ))}
-                    </div>
-                    <DialogFooter className="flex gap-2">
-                        <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button onClick={handleSave}>
-                            {editingItem ? "Enregistrer" : "Ajouter"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+        <div className="container mx-auto p-4">
+            <h1 className="text-2xl font-bold mb-4">Tableau des Utilisateurs</h1>
+            <DataTable
+                initialData={tableData}
+                title="Utilisateurs"
+                idField="ID"
+                onPageChange={handlePageChange}
+                onDelete={handleDelete}
+                onSave={handleSave}
+                isDialogOpen={isDialogOpen}
+                setIsDialogOpen={setIsDialogOpen}
+                editingItem={editingItem}
+                setEditingItem={setEditingItem}
+            />
         </div>
     );
 };

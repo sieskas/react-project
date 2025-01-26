@@ -1,5 +1,4 @@
-import { useAuth } from "@/contexts/AuthContext";
-import NestedSearchDropdown from "@/components/NestedSearchDropdown.jsx";
+import {useAuth} from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
     const { user } = useAuth();
