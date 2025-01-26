@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, {useState, useMemo} from 'react';
 import {
     Table,
     TableBody,
@@ -15,107 +15,135 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Search } from "lucide-react";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+    PaginationEllipsis,
+} from "@/components/ui/pagination";
+import {Button} from "@/components/ui/button";
+import {Input} from "@/components/ui/input";
+import {Plus, Trash2, ArrowUpDown, ArrowUp, ArrowDown, Search} from "lucide-react";
 import {
     flexRender,
     getCoreRowModel,
     getSortedRowModel,
     getFilteredRowModel,
+    getPaginationRowModel,
     useReactTable,
 } from "@tanstack/react-table";
 
-// Données de test
-const testData = {
-    "columns": ["ID", "Last Name", "First Name", "Age", "Email"],
-    "people": [
-        {
-            "ID": 1,
-            "Last Name": "Dupont",
-            "First Name": "Jean",
-            "Age": 30,
-            "Email": "jean.dupont@example.com"
+// Fonction de génération des données de test
+const generateTestData = (count = 35) => {
+    const firstNames = ["Jean", "Sophie", "Louis", "Emma", "Thomas", "Marie", "Paul", "Julie", "Pierre", "Clara"];
+    const lastNames = ["Dupont", "Martin", "Bernard", "Lemoine", "Dubois", "Moreau", "Laurent", "Simon", "Michel", "Robert"];
+
+    const content = Array.from({length: count}, (_, i) => ({
+        "ID": i + 1,
+        "Last Name": lastNames[Math.floor(Math.random() * lastNames.length)],
+        "First Name": firstNames[Math.floor(Math.random() * firstNames.length)],
+        "Age": Math.floor(Math.random() * (60 - 20) + 20),
+        "Email": `user${i + 1}@example.com`
+    }));
+
+    const pageSize = 10;
+    const totalPages = Math.ceil(count / pageSize);
+
+    return {
+        "columns": ["ID", "Last Name", "First Name", "Age", "Email"],
+        "content": content,
+        "pageable": {
+            "pageNumber": 0,
+            "pageSize": pageSize,
+            "sort": {
+                "empty": true,
+                "sorted": false,
+                "unsorted": true
+            },
         },
-        {
-            "ID": 2,
-            "Last Name": "Martin",
-            "First Name": "Sophie",
-            "Age": 25,
-            "Email": "sophie.martin@example.com"
-        },
-        {
-            "ID": 3,
-            "Last Name": "Bernard",
-            "First Name": "Louis",
-            "Age": 40,
-            "Email": "louis.bernard@example.com"
-        },
-        {
-            "ID": 4,
-            "Last Name": "Lemoine",
-            "First Name": "Emma",
-            "Age": 35,
-            "Email": "emma.lemoine@example.com"
-        }
-    ]
+        "totalElements": count,
+        "totalPages": totalPages,
+        "last": true,
+        "size": pageSize,
+        "number": 0,
+        "numberOfElements": count,
+        "first": true,
+        "empty": false
+    };
 };
+
+// Données de test initiales
+const testData = generateTestData();
 
 const GenericDataTable = ({
                               initialData = testData,
                               title = "Données",
-                              idField = "ID"
+                              idField = "ID",
+                              onPageChange = (pageIndex, pageSize) => console.log("Page changed:", pageIndex, pageSize),
+                              onSortChange = (sort) => console.log("Sort changed:", sort)
                           }) => {
     const [data, setData] = useState(initialData);
     const [editingItem, setEditingItem] = useState(null);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [sorting, setSorting] = useState([]);
     const [globalFilter, setGlobalFilter] = useState('');
+    const [{pageIndex, pageSize}, setPagination] = useState({
+        pageIndex: initialData.pageable.pageNumber,
+        pageSize: initialData.pageable.pageSize,
+    });
 
     const columns = useMemo(() => {
         if (!data?.columns) return [];
         return data.columns.map((col) => ({
             accessorKey: col,
-            header: ({ column }) => {
+            header: ({column}) => {
                 return (
                     <Button
                         variant="ghost"
-                        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+                        onClick={() => {
+                            column.toggleSorting(column.getIsSorted() === "asc");
+                            const newSort = column.getIsSorted() === "asc" ? "desc" : "asc";
+                            onSortChange({field: col, direction: newSort});
+                        }}
                         className="hover:bg-transparent"
                     >
                         {col}
                         {column.getIsSorted() === "asc" ? (
-                            <ArrowUp className="ml-2 h-4 w-4" />
+                            <ArrowUp className="ml-2 h-4 w-4"/>
                         ) : column.getIsSorted() === "desc" ? (
-                            <ArrowDown className="ml-2 h-4 w-4" />
+                            <ArrowDown className="ml-2 h-4 w-4"/>
                         ) : (
-                            <ArrowUpDown className="ml-2 h-4 w-4" />
+                            <ArrowUpDown className="ml-2 h-4 w-4"/>
                         )}
                     </Button>
                 );
             },
         }));
-    }, [data?.columns]);
+    }, [data?.columns, onSortChange]);
 
     const table = useReactTable({
-        data: data?.people || [],
+        data: data?.content || [],
         columns,
         getCoreRowModel: getCoreRowModel(),
         getSortedRowModel: getSortedRowModel(),
         getFilteredRowModel: getFilteredRowModel(),
+        getPaginationRowModel: getPaginationRowModel(),
         onSortingChange: setSorting,
+        onPaginationChange: setPagination,
         onGlobalFilterChange: setGlobalFilter,
-        globalFilterFn: (row, columnId, filterValue) => {
-            const value = row.getValue(columnId);
-            if (value === null || value === undefined) return false;
-            return String(value)
-                .toLowerCase()
-                .includes(String(filterValue).toLowerCase());
-        },
         state: {
             sorting,
             globalFilter,
+            pagination: {
+                pageIndex,
+                pageSize,
+            },
         },
+        pageCount: Math.ceil(data?.totalElements / pageSize),
+        manualPagination: false,
     });
 
     const createEmptyItem = () => {
@@ -133,23 +161,31 @@ const GenericDataTable = ({
     };
 
     const handleDelete = (id) => {
-        setData(prevData => ({
-            ...prevData,
-            people: prevData.people.filter(item => item[idField] !== id)
-        }));
+        setData(prevData => {
+            const newContent = prevData.content.filter(item => item[idField] !== id);
+            const newTotalElements = newContent.length;
+            const newTotalPages = Math.ceil(newTotalElements / pageSize);
+
+            return {
+                ...prevData,
+                content: newContent,
+                totalElements: newTotalElements,
+                totalPages: newTotalPages
+            };
+        });
     };
 
     const handleSave = () => {
         if (editingItem) {
             setData(prevData => ({
                 ...prevData,
-                people: prevData.people.map(item =>
+                content: prevData.content.map(item =>
                     item[idField] === editingItem[idField] ? editingItem : item
                 )
             }));
         } else {
-            const newId = data.people.length > 0
-                ? Math.max(...data.people.map(item => item[idField])) + 1
+            const newId = data.content.length > 0
+                ? Math.max(...data.content.map(item => item[idField])) + 1
                 : 1;
 
             const itemToAdd = {
@@ -157,10 +193,18 @@ const GenericDataTable = ({
                 [idField]: newId
             };
 
-            setData(prevData => ({
-                ...prevData,
-                people: [...prevData.people, itemToAdd]
-            }));
+            setData(prevData => {
+                const newContent = [...prevData.content, itemToAdd];
+                const newTotalElements = newContent.length;
+                const newTotalPages = Math.ceil(newTotalElements / pageSize);
+
+                return {
+                    ...prevData,
+                    content: newContent,
+                    totalElements: newTotalElements,
+                    totalPages: newTotalPages
+                };
+            });
         }
 
         setIsDialogOpen(false);
@@ -208,10 +252,10 @@ const GenericDataTable = ({
                             onChange={(e) => setGlobalFilter(e.target.value)}
                             className="w-[300px] pl-3 pr-10"
                         />
-                        <Search className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 transform -translate-y-1/2" />
+                        <Search className="w-4 h-4 text-gray-500 absolute right-3 top-1/2 transform -translate-y-1/2"/>
                     </div>
                     <Button onClick={handleAdd} className="flex items-center gap-2">
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-4 h-4"/>
                         Ajouter
                     </Button>
                 </div>
@@ -220,21 +264,19 @@ const GenericDataTable = ({
             <div className="rounded-md border">
                 <Table>
                     <TableHeader>
-                        {table.getHeaderGroups().map((headerGroup) => (
-                            <TableRow key={headerGroup.id}>
-                                {headerGroup.headers.map((header) => (
-                                    <TableHead key={header.id}>
-                                        {header.isPlaceholder
-                                            ? null
-                                            : flexRender(
-                                                header.column.columnDef.header,
-                                                header.getContext()
-                                            )}
-                                    </TableHead>
-                                ))}
-                                <TableHead>Actions</TableHead>
-                            </TableRow>
-                        ))}
+                        <TableRow>
+                            {table.getHeaderGroups()[0].headers.map((header) => (
+                                <TableHead key={header.id}>
+                                    {header.isPlaceholder
+                                        ? null
+                                        : flexRender(
+                                            header.column.columnDef.header,
+                                            header.getContext()
+                                        )}
+                                </TableHead>
+                            ))}
+                            <TableHead>Actions</TableHead>
+                        </TableRow>
                     </TableHeader>
                     <TableBody>
                         {table.getRowModel().rows?.length ? (
@@ -262,7 +304,7 @@ const GenericDataTable = ({
                                             }}
                                             className="flex items-center gap-2"
                                         >
-                                            <Trash2 className="w-4 h-4" />
+                                            <Trash2 className="w-4 h-4"/>
                                             Supprimer
                                         </Button>
                                     </TableCell>
@@ -280,6 +322,42 @@ const GenericDataTable = ({
                         )}
                     </TableBody>
                 </Table>
+            </div>
+
+            <div className="flex items-center justify-between py-4">
+                <div className="text-sm text-gray-500">
+                    {pageSize * pageIndex + 1}-{Math.min(pageSize * (pageIndex + 1), data.totalElements)} sur {data.totalElements} éléments
+                </div>
+                <div className="flex items-center gap-4 ml-auto">
+                    <Pagination>
+                        <PaginationContent className="flex gap-2">
+                            <PaginationItem>
+                                <PaginationPrevious
+                                    onClick={() => table.previousPage()}
+                                    disabled={!table.getCanPreviousPage()}
+                                />
+                            </PaginationItem>
+
+                            {Array.from({ length: data.totalPages }, (_, i) => (
+                                <PaginationItem key={i}>
+                                    <PaginationLink
+                                        onClick={() => table.setPageIndex(i)}
+                                        isActive={pageIndex === i}
+                                    >
+                                        {i + 1}
+                                    </PaginationLink>
+                                </PaginationItem>
+                            ))}
+
+                            <PaginationItem>
+                                <PaginationNext
+                                    onClick={() => table.nextPage()}
+                                    disabled={!table.getCanNextPage()}
+                                />
+                            </PaginationItem>
+                        </PaginationContent>
+                    </Pagination>
+                </div>
             </div>
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
