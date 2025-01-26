@@ -1,4 +1,3 @@
-// src/routes/AppRoutes.jsx
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext.jsx";
 import LoginForm from "@/pages/LoginForm.jsx";
@@ -10,26 +9,23 @@ const PrivateRoute = ({ children }) => {
     return user ? children : <Navigate to="/login" />;
 };
 
-// Fonction pour extraire toutes les routes depuis `menuConfig.js`
 const generateRoutes = () => {
     return MENU_ITEMS.flatMap(item => {
         const routes = [];
 
-        // Ajouter la route principale si elle a un `component`, sinon 404
         if (item.path) {
             routes.push({
                 path: item.path,
-                component: item.component || NotFoundPage, // Fallback 404 si pas de component
+                component: item.component || NotFoundPage,
                 role: item.role,
             });
         }
 
-        // Ajouter les sous-menus avec la même logique
         if (item.subMenu) {
             routes.push(
                 ...item.subMenu.map(sub => ({
                     path: sub.path,
-                    component: sub.component || NotFoundPage, // Fallback 404
+                    component: sub.component || NotFoundPage,
                     role: sub.role,
                 }))
             );
@@ -40,8 +36,13 @@ const generateRoutes = () => {
 };
 
 export default function AppRoutes() {
+    const { user } = useAuth();
+
     return (
         <Routes>
+            {/* Redirection automatique depuis `/` vers `/login` si non connecté */}
+            <Route path="/" element={user ? <Navigate to="/" /> : <Navigate to="/login" />} />
+
             {/* Route de connexion */}
             <Route path="/login" element={<LoginForm />} />
 

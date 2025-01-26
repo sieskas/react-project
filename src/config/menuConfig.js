@@ -1,4 +1,4 @@
-import { FaTachometerAlt, FaChartBar, FaUserCog, FaCashRegister } from "react-icons/fa";
+import {FaTachometerAlt, FaChartBar, FaUserCog, FaCashRegister} from "react-icons/fa";
 import DashboardPage from "@/pages/DashboardPage";
 import ReportPage from "@/pages/ReportPage";
 import ManageUserPage from "@/pages/ManageUserPage";
