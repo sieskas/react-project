@@ -1,62 +1,81 @@
-import { createContext, useState, useContext } from "react";
+import {createContext, useContext, useState} from "react";
 import PropTypes from "prop-types";
-import { useNavigate } from "react-router-dom";
+import {useNavigate} from "react-router-dom";
 import axios from "axios";
-import { toast } from "@/hooks/use-toast";
+import {toast} from "@/hooks/use-toast";
 
-// Création de l'instance API
-const createAPI = () => {
-    const api = axios.create({
-        baseURL: 'http://localhost:8080',
-        withCredentials: true,
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    });
+class AuthService {
+    static createAPI() {
+        return axios.create({
+            baseURL: 'http://localhost:8080',
+            withCredentials: true,
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+    }
 
-    // Restauration du token si présent
-    const user = sessionStorage.getItem('user');
-    if (user) {
-        const userData = JSON.parse(user);
-        if (userData.token) {
-            api.defaults.headers.common['Authorization'] = `Bearer ${userData.token}`;
+    static getUserFromStorage() {
+        const savedUser = sessionStorage.getItem('user');
+        return savedUser ? JSON.parse(savedUser) : null;
+    }
+
+    static async fetchLocationsTree(api) {
+        try {
+            const response = await api.get("/api/v1/locations/tree");
+            console.log(response.data)
+            localStorage.setItem('locationsHierarchy', JSON.stringify(response.data));
+            return response.data;
+        } catch (error) {
+            console.error('Erreur lors de la récupération des locations:', error);
+            return null;
         }
     }
 
-    return api;
-};
+    static clearStorage() {
+        sessionStorage.removeItem('user');
+        localStorage.removeItem('locationsHierarchy');
+    }
+}
 
 const AuthContext = createContext();
 
 export const useAuth = () => {
     const context = useContext(AuthContext);
-    if (context === undefined) {
+    if (!context) {
         throw new Error('useAuth must be used within an AuthProvider');
     }
     return context;
 };
 
-export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(() => {
-        const savedUser = sessionStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
+export const AuthProvider = ({children}) => {
     const navigate = useNavigate();
-    const [api] = useState(createAPI);
+
+    // Correction : Initialisation différée pour éviter l'erreur de contexte de stockage
+    const [user, setUser] = useState(() => AuthService.getUserFromStorage() || null);
+    const [api] = useState(() => AuthService.createAPI());
+
+    const handleAuthError = (error) => {
+        toast({
+            title: "Erreur de connexion",
+            description: error.response?.data?.error || "Une erreur est survenue",
+            variant: "destructive",
+        });
+    };
 
     const login = async (credentials) => {
         try {
             const response = await api.post("/api/v1/auth/login", credentials);
             const userData = response.data;
+
             sessionStorage.setItem('user', JSON.stringify(userData));
             setUser(userData);
+
+            await AuthService.fetchLocationsTree(api);
+
             navigate("/");
         } catch (error) {
-            toast({
-                title: "Erreur de connexion",
-                description: error.response?.data?.error || "Une erreur est survenue",
-                variant: "destructive",
-            });
+            handleAuthError(error);
         }
     };
 
@@ -64,20 +83,18 @@ export const AuthProvider = ({ children }) => {
         try {
             await api.post("/api/v1/auth/logout");
         } finally {
-            sessionStorage.removeItem('user');
-            delete api.defaults.headers.common['Authorization'];
+            AuthService.clearStorage();
             setUser(null);
             navigate("/login");
         }
     };
 
-    // Intercepteur pour gérer les 401
+    // Intercepteur pour gérer les erreurs 401 et rediriger vers la connexion
     api.interceptors.response.use(
         response => response,
         error => {
-            if (error.response?.status === 401) {
-                sessionStorage.removeItem('user');
-                delete api.defaults.headers.common['Authorization'];
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                AuthService.clearStorage();
                 setUser(null);
                 navigate("/login");
             }
@@ -86,7 +103,7 @@ export const AuthProvider = ({ children }) => {
     );
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, api }}>
+        <AuthContext.Provider value={{user, login, logout, api}}>
             {children}
         </AuthContext.Provider>
     );

@@ -16,7 +16,7 @@ const NestedSearchDropdown = ({ data }) => {
         if (!data || !Array.isArray(data) || data.length === 0) {
             return [{
                 id: -1,
-                name: 'Aucune location',
+                label: 'Aucune location',
                 children: []
             }];
         }
@@ -32,6 +32,37 @@ const NestedSearchDropdown = ({ data }) => {
     const [searchTerm, setSearchTerm] = useState("");
     const [expandedItems, setExpandedItems] = useState(new Set());
     const [selectedId, setSelectedId] = useState(null);
+
+    // Charger l'ID sélectionné depuis le cache au démarrage
+    useEffect(() => {
+        const cachedSelectedId = localStorage.getItem('selectedLocationId');
+        if (cachedSelectedId) {
+            setSelectedId(Number(cachedSelectedId));
+        }
+    }, []);
+
+    // Vérifier si l'ID existe dans les données
+    const checkIfIdExists = useCallback((items, targetId) => {
+        for (const item of items) {
+            if (item.id === targetId) return true;
+            if (Array.isArray(item.children)) {
+                const found = checkIfIdExists(item.children, targetId);
+                if (found) return true;
+            }
+        }
+        return false;
+    }, []);
+
+    // Vérifier si l'ID sauvegardé existe toujours dans les données actuelles
+    useEffect(() => {
+        if (selectedId && normalizedData.length > 0) {
+            const idExists = checkIfIdExists(normalizedData, selectedId);
+            if (!idExists) {
+                setSelectedId(null);
+                localStorage.removeItem('selectedLocationId');
+            }
+        }
+    }, [normalizedData, selectedId, checkIfIdExists]);
 
     // Set selectedId to -1 when data is empty
     useEffect(() => {
@@ -54,9 +85,9 @@ const NestedSearchDropdown = ({ data }) => {
             if (!item || typeof item !== 'object') return;
 
             const currentPath = [...parents, item];
-            const itemNameLower = item.name?.toLowerCase() || '';
+            const itemLabelLower = item.label?.toLowerCase() || '';
 
-            if (itemNameLower.includes(term)) {
+            if (itemLabelLower.includes(term)) {
                 currentPath.forEach(pathItem => {
                     if (pathItem && pathItem.id !== undefined) {
                         matches.add(pathItem.id);
@@ -91,6 +122,7 @@ const NestedSearchDropdown = ({ data }) => {
 
     const handleSelect = useCallback((id) => {
         setSelectedId(id);
+        localStorage.setItem('selectedLocationId', id.toString());
         setOpen(false);
     }, []);
 
@@ -98,7 +130,7 @@ const NestedSearchDropdown = ({ data }) => {
         const findItem = (items) => {
             for (const item of items) {
                 if (!item || typeof item !== 'object') continue;
-                if (item.id === selectedId) return item.name;
+                if (item.id === selectedId) return item.label;
                 if (Array.isArray(item.children)) {
                     const found = findItem(item.children);
                     if (found) return found;
@@ -151,7 +183,7 @@ const NestedSearchDropdown = ({ data }) => {
                         "flex-1 truncate",
                         { "font-medium": isExactMatch }
                     )}>
-                        {item.name}
+                        {item.label}
                     </span>
                 </div>
 

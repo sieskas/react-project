@@ -8,58 +8,20 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import Spinner from "@/components/Spinner.jsx";
+import { useAuth } from "@/contexts/AuthContext.jsx";
 
-// Garder les fonctions de fetch existantes...
+// Fonction pour récupérer la hiérarchie des locations depuis le cache
 const fetchLocationsHierarchy = () => {
-    const storedData = localStorage.getItem("locationsHierarchy");
-    return storedData ? JSON.parse(storedData) : null;
-};
+    try {
+        const storedData = localStorage.getItem("locationsHierarchy");
+        if (!storedData) return [];
 
-const fetchLocationDataFromServer = (id) => {
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            const mockLocationData = {
-                locationInfo: {
-                    label: "Informations générales",
-                    data: { ID: id, Nom: `Location ${id}`, Type: "Store" },
-                    columnsSchema: [
-                        { name: "ID", type: "Number", maxLength: 10, required: true },
-                        { name: "Nom", type: "String", maxLength: 50, required: true },
-                        { name: "Type", type: "Dropdown", required: true, dropdownOptions: ["Chain", "Store", "Region", "District"] }
-                    ]
-                },
-                address: {
-                    label: "Adresse",
-                    data: { Adresse: `Adresse ${id}`, Ville: "Paris" },
-                    columnsSchema: [
-                        { name: "Adresse", type: "String", maxLength: 100, required: false },
-                        { name: "Ville", type: "Dropdown", required: false, dropdownOptions: ["Paris", "Marseille", "Lyon"] }
-                    ]
-                }
-            };
-            resolve(mockLocationData);
-        }, 1500);
-    });
-};
-
-// Structure pour un nouveau formulaire vide
-const emptyFormData = {
-    locationInfo: {
-        label: "Informations générales",
-        data: { ID: "", Nom: "", Type: "" },
-        columnsSchema: [
-            { name: "ID", type: "Number", maxLength: 10, required: true },
-            { name: "Nom", type: "String", maxLength: 50, required: true },
-            { name: "Type", type: "Dropdown", required: true, dropdownOptions: ["Chain", "Store", "Region", "District"] }
-        ]
-    },
-    address: {
-        label: "Adresse",
-        data: { Adresse: "", Ville: "" },
-        columnsSchema: [
-            { name: "Adresse", type: "String", maxLength: 100, required: false },
-            { name: "Ville", type: "Dropdown", required: false, dropdownOptions: ["Paris", "Marseille", "Lyon"] }
-        ]
+        const parsedData = JSON.parse(storedData);
+        // Si c'est un objet unique, on le met dans un tableau
+        return Array.isArray(parsedData) ? parsedData : [parsedData];
+    } catch (error) {
+        console.error("Erreur lors de la récupération des locations du cache:", error);
+        return [];
     }
 };
 
@@ -69,8 +31,21 @@ const DynamicPage = () => {
     const [locationData, setLocationData] = useState({});
     const [isLoading, setIsLoading] = useState(false);
     const [tab, setTab] = useState("locationInfo");
+    const { api } = useAuth();
+
+    // Récupère la structure des données pour la création
+    const fetchLocationStructure = async () => {
+        try {
+            const response = await api.get('/api/v1/locations/structure');
+            return response.data;
+        } catch (error) {
+            console.error("Erreur lors de la récupération de la structure :", error);
+            return null;
+        }
+    };
 
     const getAllNodeIds = (node) => {
+        if (!node || !node.id) return [];
         let ids = [node.id];
         if (node.children?.length > 0) {
             node.children.forEach((child) => {
@@ -79,32 +54,51 @@ const DynamicPage = () => {
         }
         return ids;
     };
-    const allNodeIds = getAllNodeIds(locationsHierarchy);
+    const allNodeIds = locationsHierarchy.length > 0 ? getAllNodeIds(locationsHierarchy) : [];
 
-    const renderTree = (node) => (
-        <TreeItem key={node.id} itemId={node.id} label={node.label}>
-            {node.children?.map((child) => renderTree(child))}
-        </TreeItem>
-    );
+    const renderTree = (node) => {
+        if (!node || !node.id) return null;
+        return (
+            <TreeItem key={node.id} itemId={String(node.id)} label={node.label}>
+                {node.children?.map((child) => renderTree(child))}
+            </TreeItem>
+        );
+    };
 
     const handleNodeSelect = async (event, itemIds) => {
         const selectedId = itemIds.length > 0 ? itemIds[0] : null;
+        console.log(selectedId);
         setSelected(selectedId);
-
-        if (selectedId) {
-            setIsLoading(true);
-            const data = await fetchLocationDataFromServer(selectedId);
-            setLocationData(data);
-            setIsLoading(false);
-        } else {
-            setLocationData({});
-        }
     };
 
-    const handleAdd = () => {
-        setSelected("new");
-        setLocationData(emptyFormData);
-        setTab("locationInfo"); // Réinitialiser l'onglet actif
+    const handleAdd = async () => {
+        console.log(selected)
+        if(!setSelected) {
+            setSelected("new");
+        }
+        setTab("locationInfo");
+
+        setIsLoading(true);
+        const structure = await fetchLocationStructure();
+        setIsLoading(false);
+
+        if (structure) {
+            // Génère les données vides basées sur la structure
+            const formattedData = Object.keys(structure).reduce((acc, key) => {
+                acc[key] = {
+                    ...structure[key],
+                    data: structure[key].columnsSchema.reduce((dataAcc, column) => {
+                        dataAcc[column.name] = "";
+                        return dataAcc;
+                    }, {})
+                };
+                return acc;
+            }, {});
+
+            setLocationData(formattedData);
+        } else {
+            console.error("Erreur : Impossible de charger la structure des données.");
+        }
     };
 
     const handleInputChange = (section, field, value) => {
@@ -117,8 +111,42 @@ const DynamicPage = () => {
         }));
     };
 
-    const handleSave = () => {
-        console.log("Données enregistrées :", locationData);
+    const handleSave = async () => {
+        try {
+            setIsLoading(true);
+
+            console.log(selected)
+            const locationPayload = {
+                label: locationData.locationInfo.data.Nom,
+                typeId: locationData.locationInfo.data.Type,
+                parentId: selected === "new" ? null : selected,
+               // address: locationData.address.data.Adresse,
+                //city: locationData.address.data.Ville
+            };
+
+            await api.post('/api/v1/locations', locationPayload);
+
+            console.log("Données enregistrées :", locationData);
+
+            setSelected(null);
+            setLocationData({});
+            const updatedHierarchy = await api.get('/api/v1/locations/tree');
+            setLocationsHierarchy(updatedHierarchy.data);
+            localStorage.setItem("locationsHierarchy", JSON.stringify(updatedHierarchy.data));
+        } catch (error) {
+            console.error("Erreur lors de l'enregistrement :", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const isFormValid = () => {
+        if (!locationData) return false;
+        return Object.values(locationData).every(section =>
+            section.columnsSchema.every(column =>
+                !column.required || (section.data && section.data[column.name])
+            )
+        );
     };
 
     return (
@@ -126,19 +154,18 @@ const DynamicPage = () => {
             <Card className="w-[500px] p-4">
                 <h2 className="text-lg font-semibold">Sélectionner une location</h2>
 
-                <SimpleTreeView defaultExpandedItems={allNodeIds} onItemClick={handleNodeSelect}>
-                    {renderTree(locationsHierarchy)}
-                </SimpleTreeView>
+                {locationsHierarchy.length === 0 ? (
+                    <div className="text-gray-500 text-center">Aucune location disponible</div>
+                ) : (
+                    <SimpleTreeView defaultExpandedItems={allNodeIds} onItemClick={handleNodeSelect}>
+                        {locationsHierarchy.map(renderTree)}
+                    </SimpleTreeView>
+                )}
 
                 <div className="mt-4 flex justify-center gap-4">
-                    <Button onClick={handleAdd} disabled={!selected && locationsHierarchy && Object.keys(locationsHierarchy).length > 0}>
-                        Ajouter
-                    </Button>
-                    <Button variant="destructive" disabled={!selected || selected === "new"}>
-                        Supprimer
-                    </Button>
+                    <Button onClick={handleAdd}>Ajouter</Button>
+                    <Button variant="destructive" disabled={!selected || selected === "new"}>Supprimer</Button>
                 </div>
-
             </Card>
 
             {isLoading && (
@@ -147,7 +174,7 @@ const DynamicPage = () => {
                 </div>
             )}
 
-            {!isLoading && selected && (
+            {!isLoading && selected && locationData && (
                 <Card className="w-[800px] p-6">
                     <Tabs value={tab} onValueChange={setTab} className="w-full">
                         <TabsList className="flex justify-start mb-4 border-b">
@@ -191,10 +218,7 @@ const DynamicPage = () => {
                         ))}
                     </Tabs>
 
-                    <Button className="mt-6 w-full" onClick={handleSave} disabled={!locationData.locationInfo.data.ID || !locationData.locationInfo.data.Nom || !locationData.locationInfo.data.Type}>
-                        Enregistrer
-                    </Button>
-
+                    <Button className="mt-6 w-full" onClick={handleSave} disabled={!isFormValid()}>Enregistrer</Button>
                 </Card>
             )}
         </div>

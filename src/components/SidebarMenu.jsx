@@ -15,21 +15,25 @@ export default function SidebarMenu() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        const fetchLocations = async () => {
+        const loadLocationsFromCache = () => {
             try {
-                setIsLoading(true);
-                const response = await api.get('/api/v1/locations/tree'); // Utilisation de l'instance api
-                setLocations(response.data);
-                setError(null);
+                const cachedLocations = localStorage.getItem('locationsHierarchy');
+                if (cachedLocations) {
+                    const parsedLocations = JSON.parse(cachedLocations);
+                    const locationsArray = !Array.isArray(parsedLocations) ? [parsedLocations] : parsedLocations;
+                    setLocations(locationsArray);
+                } else {
+                    setError("Aucune donnée en cache");
+                }
             } catch (err) {
-                setError('Erreur lors du chargement des locations');
-                console.error('Erreur:', err);
+                setError("Erreur lors du chargement des locations depuis le cache");
+                console.error("Erreur:", err);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchLocations();
+        loadLocationsFromCache();
     }, []);
 
     if (!user) return null;
