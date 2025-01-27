@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext.jsx";
 const fetchLocationsHierarchy = () => {
     try {
         const storedData = localStorage.getItem("locationsHierarchy");
+        console.log(storedData);
         if (!storedData) return [];
 
         const parsedData = JSON.parse(storedData);
@@ -25,6 +26,7 @@ const fetchLocationsHierarchy = () => {
     }
 };
 
+
 const DynamicPage = () => {
     const [locationsHierarchy, setLocationsHierarchy] = useState(fetchLocationsHierarchy());
     const [selected, setSelected] = useState(null);
@@ -32,6 +34,40 @@ const DynamicPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [tab, setTab] = useState("locationInfo");
     const { api } = useAuth();
+
+    const fetchLocationById = async (id) => {
+        try {
+            setIsLoading(true);
+            const response = await api.get(`/api/v1/locations/${id}`);
+            const { structure } = response.data;
+
+            // Formatage dynamique des données
+            const formattedData = {};
+
+            // Pour chaque section dans la structure (locationInfo, address, etc.)
+            Object.entries(structure).forEach(([sectionKey, sectionValue]) => {
+                formattedData[sectionKey] = {
+                    label: sectionValue.label,
+                    columnsSchema: sectionValue.columnsSchema,
+                    data: {}
+                };
+
+                // Pour chaque colonne dans la section
+                sectionValue.columnsSchema.forEach(column => {
+                    const apiField = column.apiField;
+                    // Utilise directement la valeur stockée dans la structure
+                    formattedData[sectionKey].data[apiField] = column.value ?? '';
+                });
+            });
+
+            console.log('Formatted Data:', formattedData);
+            setLocationData(formattedData);
+        } catch (error) {
+            console.error("Erreur lors de la récupération de la location:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Récupère la structure des données pour la création
     const fetchLocationStructure = async () => {
@@ -65,10 +101,13 @@ const DynamicPage = () => {
         );
     };
 
-    const handleNodeSelect = async (event, itemIds) => {
-        const selectedId = itemIds.length > 0 ? itemIds[0] : null;
-        console.log(selectedId);
-        setSelected(selectedId);
+    const handleNodeSelect = async (event, itemId) => {
+        console.log(itemId);
+        setSelected(itemId);
+
+        if (itemId && itemId !== "new") {
+            await fetchLocationById(itemId);
+        }
     };
 
     const handleAdd = async () => {
@@ -88,7 +127,7 @@ const DynamicPage = () => {
                 acc[key] = {
                     ...structure[key],
                     data: structure[key].columnsSchema.reduce((dataAcc, column) => {
-                        dataAcc[column.name] = "";
+                        dataAcc[column.label] = "";
                         return dataAcc;
                     }, {})
                 };
@@ -144,7 +183,7 @@ const DynamicPage = () => {
         if (!locationData) return false;
         return Object.values(locationData).every(section =>
             section.columnsSchema.every(column =>
-                !column.required || (section.data && section.data[column.name])
+                !column.required || (section.data && section.data[column.label])
             )
         );
     };
@@ -157,7 +196,7 @@ const DynamicPage = () => {
                 {locationsHierarchy.length === 0 ? (
                     <div className="text-gray-500 text-center">Aucune location disponible</div>
                 ) : (
-                    <SimpleTreeView defaultExpandedItems={allNodeIds} onItemClick={handleNodeSelect}>
+                    <SimpleTreeView defaultExpandedItems={allNodeIds} onItemClick={handleNodeSelect} multiSelect={false}>
                         {locationsHierarchy.map(renderTree)}
                     </SimpleTreeView>
                 )}
@@ -189,11 +228,14 @@ const DynamicPage = () => {
                             <TabsContent key={key} value={key}>
                                 <h3 className="text-lg font-medium mb-4">{locationData[key].label}</h3>
                                 <div className="space-y-4">
-                                    {locationData[key].columnsSchema.map(({ name, type, dropdownOptions }) =>
+                                    {locationData[key].columnsSchema.map(({ apiField, name, type, dropdownOptions }) =>
                                         type === "Dropdown" ? (
-                                            <div key={name}>
+                                            <div key={apiField}>
                                                 <Label>{name}</Label>
-                                                <Select onValueChange={(value) => handleInputChange(key, name, value)} value={locationData[key].data[name] || ""}>
+                                                <Select
+                                                    onValueChange={(value) => handleInputChange(key, apiField, value)}
+                                                    value={locationData[key].data[apiField] || ""}
+                                                >
                                                     <SelectTrigger>
                                                         <SelectValue placeholder={`Sélectionnez ${name.toLowerCase()}`} />
                                                     </SelectTrigger>
@@ -207,12 +249,16 @@ const DynamicPage = () => {
                                                 </Select>
                                             </div>
                                         ) : (
-                                            <div key={name}>
+                                            <div key={apiField}>
                                                 <Label>{name}</Label>
-                                                <Input value={locationData[key].data[name] || ""} onChange={(e) => handleInputChange(key, name, e.target.value)} />
+                                                <Input
+                                                    value={locationData[key].data[apiField] || ""}
+                                                    onChange={(e) => handleInputChange(key, apiField, e.target.value)}
+                                                />
                                             </div>
                                         )
                                     )}
+
                                 </div>
                             </TabsContent>
                         ))}
