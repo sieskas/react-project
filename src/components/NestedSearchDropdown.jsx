@@ -28,16 +28,47 @@ const NestedSearchDropdown = ({ data }) => {
     const [expandedItems, setExpandedItems] = useState(new Set());
     const [selectedId, setSelectedId] = useState(null);
 
-    // Auto-select first location when data is loaded
+    // Load selected id from cache and validate it
     useEffect(() => {
-        if (!isEmptyData && dataArray.length > 0) {
-            // Get first location
+        const cachedId = localStorage.getItem('selectedLocationId');
+
+        // Fonction pour vérifier si un ID existe dans l'arbre des données
+        const checkIdExists = (items, targetId) => {
+            for (const item of items) {
+                if (item.id === Number(targetId)) return true;
+                if (item.children?.length) {
+                    const found = checkIdExists(item.children, targetId);
+                    if (found) return true;
+                }
+            }
+            return false;
+        };
+
+        if (cachedId && !isEmptyData && dataArray.length > 0) {
+            // Vérifier si l'ID en cache existe dans les données actuelles
+            const idExists = checkIdExists(dataArray, cachedId);
+            if (idExists) {
+                setSelectedId(Number(cachedId));
+            } else {
+                // Si l'ID en cache n'est pas valide, sélectionner le premier item
+                const firstLocation = dataArray[0];
+                if (firstLocation.children?.length > 0) {
+                    setSelectedId(firstLocation.children[0].id);
+                    localStorage.setItem('selectedLocationId', firstLocation.children[0].id.toString());
+                } else {
+                    setSelectedId(firstLocation.id);
+                    localStorage.setItem('selectedLocationId', firstLocation.id.toString());
+                }
+            }
+        } else if (!isEmptyData && dataArray.length > 0) {
+            // Pas d'ID en cache, sélectionner le premier item
             const firstLocation = dataArray[0];
-            // If it has children, select first child, otherwise select the location itself
             if (firstLocation.children?.length > 0) {
                 setSelectedId(firstLocation.children[0].id);
+                localStorage.setItem('selectedLocationId', firstLocation.children[0].id.toString());
             } else {
                 setSelectedId(firstLocation.id);
+                localStorage.setItem('selectedLocationId', firstLocation.id.toString());
             }
         }
     }, [dataArray, isEmptyData]);
@@ -83,6 +114,7 @@ const NestedSearchDropdown = ({ data }) => {
 
     const handleSelect = useCallback((id) => {
         setSelectedId(id);
+        localStorage.setItem('selectedLocationId', id.toString());
         setOpen(false);
     }, []);
 
