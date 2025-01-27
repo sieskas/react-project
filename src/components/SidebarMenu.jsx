@@ -15,22 +15,35 @@ export default function SidebarMenu() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        // Charger la liste depuis localStorage
         const loadLocationsFromCache = () => {
             try {
                 const cachedLocations = localStorage.getItem('locationsHierarchy');
                 if (cachedLocations) {
                     const parsedLocations = JSON.parse(cachedLocations);
-                    const locationsArray = !Array.isArray(parsedLocations)
-                        ? [parsedLocations]
-                        : parsedLocations;
-                    setLocations(locationsArray);
+                    // Vérifier si parsedLocations est vide ou null
+                    if (!parsedLocations) {
+                        setLocations([]);
+                        return;
+                    }
+                    // Si c'est un objet unique, le mettre dans un tableau
+                    // seulement s'il n'est pas vide
+                    if (!Array.isArray(parsedLocations) && Object.keys(parsedLocations).length > 0) {
+                        setLocations([parsedLocations]);
+                    } else if (Array.isArray(parsedLocations)) {
+                        // Si c'est un tableau, le garder tel quel
+                        setLocations(parsedLocations);
+                    } else {
+                        // Si c'est un objet vide ou autre chose
+                        setLocations([]);
+                    }
                 } else {
                     setError("Aucune donnée en cache");
+                    setLocations([]); // Initialiser avec un tableau vide
                 }
             } catch (err) {
                 setError("Erreur lors du chargement des locations depuis le cache");
                 console.error("Erreur:", err);
+                setLocations([]); // En cas d'erreur, initialiser avec un tableau vide
             } finally {
                 setIsLoading(false);
             }
@@ -40,10 +53,8 @@ export default function SidebarMenu() {
         loadLocationsFromCache();
 
         // Callback qui réactualise quand l'événement est dispatché
-        const handleLocationsUpdated = (e) => {
-            // Soit on recharge depuis localStorage, soit on fait setLocations(e.detail)
+        const handleLocationsUpdated = () => {
             loadLocationsFromCache();
-            // OU: setLocations(e.detail);
         };
 
         // On écoute l'événement
