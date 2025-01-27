@@ -217,7 +217,12 @@ const DynamicPage = () => {
                     <div className="text-gray-500 text-center">Aucune location disponible</div>
                 ) : (
                     <SimpleTreeView
-                        defaultExpandedItems={allNodeIds}
+                        expandedItems={expanded}
+                        onExpandedItemsChange={() => {
+                            // On ignore ce que l’utilisateur fait,
+                            // et on garde tout ouvert (allNodeIds)
+                            setExpanded(allNodeIds);
+                        }}
                         // Utiliser onItemClick à la place de onNodeSelect ou onItemSelect
                         onItemClick={async (event, itemId) => {
                             console.log("Item cliqué:", itemId);
