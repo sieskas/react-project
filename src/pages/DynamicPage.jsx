@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, {useState, useEffect, useMemo} from "react";
 import { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView";
 import { TreeItem } from "@mui/x-tree-view/TreeItem";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import Spinner from "@/components/Spinner.jsx";
 import { useAuth } from "@/contexts/AuthContext.jsx";
+
+const getAllNodeIds = (node) => {
+    if (!node || !node.id) return [];
+    let ids = [String(node.id)];  // Convertir en string ici
+    if (node.children?.length > 0) {
+        node.children.forEach((child) => {
+            ids = ids.concat(getAllNodeIds(child));
+        });
+    }
+    return ids;
+};
 
 // Fonction pour récupérer la hiérarchie des locations depuis le cache
 const fetchLocationsHierarchy = () => {
@@ -34,6 +45,20 @@ const DynamicPage = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [tab, setTab] = useState("locationInfo");
     const { api } = useAuth();
+
+    const allNodeIds = useMemo(() => {
+        if (locationsHierarchy.length > 0) {
+            // Si c’est un tableau racine, on veut concaténer getAllNodeIds sur chaque racine
+            return locationsHierarchy.flatMap((rootNode) => getAllNodeIds(rootNode));
+        }
+        return [];
+    }, [locationsHierarchy]);
+
+    const [expanded, setExpanded] = useState(allNodeIds);
+
+    useEffect(() => {
+        setExpanded(allNodeIds);
+    }, [allNodeIds]);
 
     const fetchLocationById = async (id) => {
         try {
@@ -80,26 +105,21 @@ const DynamicPage = () => {
         }
     };
 
-    const getAllNodeIds = (node) => {
-        if (!node || !node.id) return [];
-        let ids = [node.id];
-        if (node.children?.length > 0) {
-            node.children.forEach((child) => {
-                ids = ids.concat(getAllNodeIds(child));
-            });
-        }
-        return ids;
-    };
-    const allNodeIds = locationsHierarchy.length > 0 ? getAllNodeIds(locationsHierarchy) : [];
+    //const allNodeIds = locationsHierarchy.length > 0 ? getAllNodeIds(locationsHierarchy) : [];
 
     const renderTree = (node) => {
         if (!node || !node.id) return null;
         return (
-            <TreeItem key={node.id} itemId={String(node.id)} label={node.label}>
-                {node.children?.map((child) => renderTree(child))}
+            <TreeItem
+                key={node.id}
+                itemId={String(node.id)}        // Utiliser itemId
+                label={node.label}
+            >
+                {node.children?.map(renderTree)}
             </TreeItem>
         );
     };
+
 
     const handleNodeSelect = async (event, itemId) => {
         console.log(itemId);
@@ -196,7 +216,21 @@ const DynamicPage = () => {
                 {locationsHierarchy.length === 0 ? (
                     <div className="text-gray-500 text-center">Aucune location disponible</div>
                 ) : (
-                    <SimpleTreeView defaultExpandedItems={allNodeIds} onItemClick={handleNodeSelect} multiSelect={false}>
+                    <SimpleTreeView
+                        defaultExpandedItems={allNodeIds}
+                        // Utiliser onItemClick à la place de onNodeSelect ou onItemSelect
+                        onItemClick={async (event, itemId) => {
+                            console.log("Item cliqué:", itemId);
+                            const selectedId = parseInt(itemId, 10);
+                            setSelected(selectedId);
+
+                            if (selectedId && selectedId !== "new") {
+                                await fetchLocationById(selectedId);
+                            }
+                        }}
+                        multiSelect={false}
+                        aria-label="location tree"
+                    >
                         {locationsHierarchy.map(renderTree)}
                     </SimpleTreeView>
                 )}
