@@ -15,12 +15,15 @@ export default function SidebarMenu() {
     const [error, setError] = useState(null);
 
     useEffect(() => {
+        // Charger la liste depuis localStorage
         const loadLocationsFromCache = () => {
             try {
                 const cachedLocations = localStorage.getItem('locationsHierarchy');
                 if (cachedLocations) {
                     const parsedLocations = JSON.parse(cachedLocations);
-                    const locationsArray = !Array.isArray(parsedLocations) ? [parsedLocations] : parsedLocations;
+                    const locationsArray = !Array.isArray(parsedLocations)
+                        ? [parsedLocations]
+                        : parsedLocations;
                     setLocations(locationsArray);
                 } else {
                     setError("Aucune donnée en cache");
@@ -33,7 +36,23 @@ export default function SidebarMenu() {
             }
         };
 
+        // Chargement initial
         loadLocationsFromCache();
+
+        // Callback qui réactualise quand l'événement est dispatché
+        const handleLocationsUpdated = (e) => {
+            // Soit on recharge depuis localStorage, soit on fait setLocations(e.detail)
+            loadLocationsFromCache();
+            // OU: setLocations(e.detail);
+        };
+
+        // On écoute l'événement
+        window.addEventListener("locations-updated", handleLocationsUpdated);
+
+        // Nettoyage
+        return () => {
+            window.removeEventListener("locations-updated", handleLocationsUpdated);
+        };
     }, []);
 
     if (!user) return null;

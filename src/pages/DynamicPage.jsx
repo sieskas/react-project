@@ -201,6 +201,13 @@ const DynamicPage = () => {
             setLocationsHierarchy(normalizedData);
 
             localStorage.setItem("locationsHierarchy", JSON.stringify(normalizedData));
+
+            // Émettre un événement global :
+            window.dispatchEvent(
+                new CustomEvent("locations-updated", {
+                    detail: normalizedData, // éventuellement passer les data en détail
+                })
+            );
         } catch (error) {
             console.error("Erreur lors de l'enregistrement :", error);
         } finally {
