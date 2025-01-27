@@ -131,8 +131,8 @@ const DynamicPage = () => {
     };
 
     const handleAdd = async () => {
-        console.log(selected)
-        if(!setSelected) {
+        console.log("patate " + selected)
+        if(!selected) {
             setSelected("new");
         }
         setTab("locationInfo");
@@ -174,24 +174,33 @@ const DynamicPage = () => {
         try {
             setIsLoading(true);
 
-            console.log(selected)
-            const locationPayload = {
-                label: locationData.locationInfo.data.Nom,
-                typeId: locationData.locationInfo.data.Type,
-                parentId: selected === "new" ? null : selected,
-               // address: locationData.address.data.Adresse,
-                //city: locationData.address.data.Ville
-            };
+            // 1) Construire le payload en fusionnant tous les champs
+            const locationPayload = {};
+            Object.entries(locationData).forEach(([sectionKey, sectionObj]) => {
+                Object.entries(sectionObj.data).forEach(([field, value]) => {
+                    locationPayload[field] = value;
+                });
+            });
 
+            // 2) Ajouter la notion de parentId selon ta logique
+            locationPayload.parentId = selected === "new" ? null : selected;
+
+            // 3) Poster l'objet
             await api.post('/api/v1/locations', locationPayload);
 
-            console.log("Données enregistrées :", locationData);
+            console.log("Données enregistrées :", locationPayload);
 
+            // 4) Réactualiser la hiérarchie
             setSelected(null);
             setLocationData({});
             const updatedHierarchy = await api.get('/api/v1/locations/tree');
-            setLocationsHierarchy(updatedHierarchy.data);
-            localStorage.setItem("locationsHierarchy", JSON.stringify(updatedHierarchy.data));
+            const normalizedData = Array.isArray(updatedHierarchy.data)
+                ? updatedHierarchy.data
+                : [updatedHierarchy.data];
+
+            setLocationsHierarchy(normalizedData);
+
+            localStorage.setItem("locationsHierarchy", JSON.stringify(normalizedData));
         } catch (error) {
             console.error("Erreur lors de l'enregistrement :", error);
         } finally {
@@ -199,13 +208,25 @@ const DynamicPage = () => {
         }
     };
 
+
     const isFormValid = () => {
         if (!locationData) return false;
-        return Object.values(locationData).every(section =>
-            section.columnsSchema.every(column =>
-                !column.required || (section.data && section.data[column.label])
-            )
-        );
+
+        // Pour le débogage
+        console.log("LocationData:", JSON.stringify(locationData, null, 2));
+
+        return Object.values(locationData).every(section => {
+            return section.columnsSchema.every(column => {
+                // Vérifie si le champ est requis
+                if (!column.required) return true;
+
+                // Vérifie si la donnée existe
+                const value = section.data[column.apiField];
+                console.log(`Checking field ${column.apiField}: value=${value}, required=${column.required}`);
+
+                return value !== undefined && value !== null && value !== '';
+            });
+        });
     };
 
     return (
