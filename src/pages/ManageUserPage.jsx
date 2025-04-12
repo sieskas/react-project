@@ -8,7 +8,7 @@ let allTestData = [
     { ID: 2, Nom: "Martin", Prénom: "Sophie", Âge: 28, Email: "sophie.martin@example.com", Ville: "Marseille" },
     { ID: 3, Nom: "Lemoine", Prénom: "Paul", Âge: 42, Email: "paul.lemoine@example.com", Ville: "Lyon" },
     { ID: 4, Nom: "Bernard", Prénom: "Marie", Âge: 31, Email: "marie.bernard@example.com", Ville: "Paris" },
-    { ID: 5, Nom: "Thomas", Prénom: "Lucas", Âge: 45, Email: "lucas.thomas@example.com", Ville: "Lyon" },
+    { ID: 5, Nom: "Thoma    s", Prénom: "Lucas", Âge: 45, Email: "lucas.thomas@example.com", Ville: "Lyon" },
     { ID: 6, Nom: "Robert", Prénom: "Emma", Âge: 29, Email: "emma.robert@example.com", Ville: "Marseille" },
     { ID: 7, Nom: "Dubois", Prénom: "Louis", Âge: 38, Email: "louis.dubois@example.com", Ville: "Paris" },
     { ID: 8, Nom: "Petit", Prénom: "Alice", Âge: 33, Email: "alice.petit@example.com", Ville: "Marseille" },

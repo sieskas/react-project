@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import SidebarMenu from "@/components/SidebarMenu";
 import AppRoutes from "@/routes/AppRoutes";
 import LoginForm from "@/pages/LoginForm";
+import ChatWindow from "@/components/ChatWindow.jsx";
 
 const ProtectedApp = () => {
     const { user } = useAuth();
@@ -16,6 +17,7 @@ const ProtectedApp = () => {
     return (
         <div className="flex h-screen">
             <SidebarMenu />
+            <ChatWindow />
             <main className="flex-1 p-6 overflow-auto">
                 <AppRoutes />
             </main>
