@@ -9,6 +9,7 @@ export default function ChatWindow() {
     const [open, setOpen] = useState(false);
     const [isExpanded, setIsExpanded] = useState(false);
     const scrollRef = useRef(null);
+    const [isLoading, setIsLoading] = useState(false);
 
     // Nom fixe pour le bot
     const botName = "AssistBot";
@@ -36,14 +37,54 @@ export default function ChatWindow() {
 
     const sendMessage = async () => {
         if (!input.trim()) return;
+
+        const messageToSend = input;
+        const timestamp = new Date().toISOString();
+        setInput("");
+        setIsLoading(true);
+
+        // 1. Ajoute le message utilisateur immédiatement
+        const newUserMessage = {
+            sender: "USER",
+            content: messageToSend,
+            timestamp,
+        };
+
+        setMessages((prev) => [...prev, newUserMessage]);
+
+        // 2. Ajoute un message temporaire "bot typing..."
+        const typingPlaceholder = {
+            sender: "BOT",
+            content: "AssistBot est en train d'écrire...",
+            timestamp: new Date().toISOString(),
+            isTyping: true,
+        };
+
+        setMessages((prev) => [...prev, typingPlaceholder]);
+
         try {
-            await api.post("/api/v1/chat/message", { content: input });
-            setInput("");
-            fetchMessages();
+            // Appelle ton API pour envoyer le message
+            await api.post("/api/v1/chat/message", { content: messageToSend });
+
+            // Recharge les messages (avec la vraie réponse du bot)
+            const res = await api.get("/api/v1/chat/messages");
+
+            setMessages(res.data); // Remplace tous les messages pour rester synchro avec le backend
         } catch (err) {
             console.error("Erreur d'envoi :", err);
+            // Si tu veux afficher une erreur à la place du message typing
+            setMessages((prev) =>
+                prev.map((msg) =>
+                    msg.isTyping
+                        ? { ...msg, content: "Erreur : le bot n’a pas pu répondre." }
+                        : msg
+                )
+            );
+        } finally {
+            setIsLoading(false);
         }
     };
+
 
     // Fonction pour ouvrir le chat toujours en mode réduit
     const openChat = () => {
@@ -114,11 +155,14 @@ export default function ChatWindow() {
                                             className={`px-3 py-2 rounded-lg text-sm ${
                                                 msg.sender === "USER"
                                                     ? "bg-blue-500 text-white rounded-br-none"
-                                                    : "bg-gray-200 text-gray-800 rounded-bl-none"
+                                                    : msg.isTyping
+                                                        ? "bg-gray-300 italic text-gray-600 animate-pulse"
+                                                        : "bg-gray-200 text-gray-800 rounded-bl-none"
                                             } break-words whitespace-normal overflow-wrap-anywhere`}
                                         >
                                             {msg.content}
                                         </div>
+
 
                                         {/* Horodatage */}
                                         <span className={`text-xs ${msg.sender === "USER" ? "text-right mr-1" : "ml-1"} mt-1 text-gray-500`}>
@@ -136,15 +180,46 @@ export default function ChatWindow() {
                             placeholder="Votre message..."
                             value={input}
                             onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                            onKeyDown={(e) => e.key === "Enter" && !isLoading && sendMessage()}
+                            disabled={isLoading} // Optionnel mais utile
                         />
+
                         <button
                             onClick={sendMessage}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-full hover:bg-blue-700 transition"
+                            disabled={isLoading}
+                            className={`px-4 py-2 rounded-full transition ${
+                                isLoading
+                                    ? "bg-gray-300 cursor-not-allowed text-gray-500"
+                                    : "bg-blue-600 hover:bg-blue-700 text-white"
+                            }`}
                         >
-                            Envoyer
+                            {isLoading ? (
+                                <svg
+                                    className="animate-spin h-5 w-5 text-white mx-auto"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <circle
+                                        className="opacity-25"
+                                        cx="12"
+                                        cy="12"
+                                        r="10"
+                                        stroke="currentColor"
+                                        strokeWidth="4"
+                                    ></circle>
+                                    <path
+                                        className="opacity-75"
+                                        fill="currentColor"
+                                        d="M4 12a8 8 0 018-8v8H4z"
+                                    ></path>
+                                </svg>
+                            ) : (
+                                "Envoyer"
+                            )}
                         </button>
                     </div>
+
                 </div>
             )}
         </>

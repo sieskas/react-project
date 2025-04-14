@@ -7,7 +7,7 @@ import {toast} from "@/hooks/use-toast";
 class AuthService {
     static createAPI() {
         return axios.create({
-            baseURL: 'http://localhost:8080',
+            baseURL: 'http://localhost:8081',
             withCredentials: true,
             headers: {
                 'Content-Type': 'application/json',
